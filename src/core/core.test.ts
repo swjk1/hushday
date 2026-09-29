@@ -1,0 +1,123 @@
+import { describe, expect, it } from 'vitest';
+import { CURATED_MIXES } from './catalog.js';
+import { canonicalize } from './fingerprint.js';
+import { decodeMix, encodeMix } from './share.js';
+import { breakpointTimes, duckAt, envelopeAt, positionAt } from './timeline.js';
+import type { MixComponent, MixDraft } from './types.js';
+import { MixValidationError, sanitizeDraft } from './validate.js';
+
+const c = (sound: MixComponent['sound'], startMin: number, endMin: number, level: number, id: string = sound): MixComponent => ({
+  id, sound, start: startMin * 60, end: endMin * 60, level, entry: 'soft',
+});
+const mix = (components: MixComponent[], lengthMin = 30): MixDraft => ({ name: 'Test', lengthSec: lengthMin * 60, repeat: 'loop', components });
+
+describe('fingerprint', () => {
+  it('treats small slider differences as the same discovery', () => {
+    expect(canonicalize(mix([c('brown', 0, 30, 0.41), c('rain', 0, 30, 0.2)]))).toBe(
+      canonicalize(mix([c('brown', 0, 30, 0.42), c('rain', 0, 30, 0.2)])),
+    );
+  });
+
+  it('ignores layer order, names and ids', () => {
+    const a = mix([c('brown', 0, 30, 0.7), c('rain', 0, 30, 0.5)]);
+    const b = { ...mix([c('rain', 0, 30, 0.5, 'x'), c('brown', 0, 30, 0.7, 'y')]), name: 'Other' };
+    expect(canonicalize(a)).toBe(canonicalize(b));
+  });
+
+  it('separates major intensity differences', () => {
+    expect(canonicalize(mix([c('brown', 0, 30, 0.2)]))).not.toBe(canonicalize(mix([c('brown', 0, 30, 0.9)])));
+  });
+
+  it('separates structure: sections, quiet placement and slow entries', () => {
+    const base = mix([c('brown', 0, 30, 0.7), c('focus', 12, 20, 0.7)]);
+    const later = mix([c('brown', 0, 30, 0.7), c('focus', 22, 29, 0.7)]);
+    const withQuiet = mix([...base.components, c('quiet', 22, 25, 1)]);
+    const slow = mix([c('brown', 0, 30, 0.7), { ...c('focus', 12, 20, 0.7), entry: 'slow' }]);
+    const all = [base, later, withQuiet, slow].map(canonicalize);
+    expect(new Set(all).size).toBe(4);
+  });
+
+  it('buckets nearby lengths together but not wildly different ones', () => {
+    const a = canonicalize(mix([c('pink', 0, 20, 0.6)], 20));
+    const b = canonicalize(mix([c('pink', 0, 30, 0.6)], 30));
+    const d = canonicalize(mix([c('pink', 0, 60, 0.6)], 60));
+    expect(a).toBe(b);
+    expect(a).not.toBe(d);
+  });
+});
+
+describe('timeline', () => {
+  const locked = CURATED_MIXES[0];
+
+  it('keeps full-length layers continuous across loop boundaries', () => {
+    const brown = locked.components[0];
+    expect(envelopeAt(brown, 0, locked)).toBe(1);
+    expect(envelopeAt(brown, locked.lengthSec, locked)).toBe(1);
+  });
+
+  it('ducks everything during a quiet section', () => {
+    expect(duckAt(locked, 23.5 * 60)).toBeLessThan(0.2);
+    expect(duckAt(locked, 10 * 60)).toBe(1);
+  });
+
+  it('loops or holds when a Zone outlasts the Mix', () => {
+    expect(positionAt(locked, 65 * 60)).toMatchObject({ pass: 2, pos: 5 * 60 });
+    const tide = CURATED_MIXES.find(m => m.id === 'c-low-tide')!;
+    expect(positionAt(tide, 5 * 3600)).toMatchObject({ sustaining: true, pos: tide.lengthSec });
+    const tideBrown = tide.components[1];
+    expect(envelopeAt(tideBrown, tide.lengthSec, tide)).toBe(1);
+  });
+
+  it('eases sections and quiet dips in and out instead of stepping', () => {
+    const shape = { lengthSec: 30 * 60, repeat: 'loop' as const };
+    const focus = c('focus', 10, 18, 0.7);
+    const quiet = c('quiet', 20, 25, 0.9);
+    const dip = mix([c('brown', 0, 30, 0.7), quiet]);
+    let worst = 0;
+    for (let t = 0; t < shape.lengthSec; t++) {
+      worst = Math.max(worst, Math.abs(envelopeAt(focus, t + 1, shape) - envelopeAt(focus, t, shape)));
+      worst = Math.max(worst, Math.abs(duckAt(dip, t + 1) - duckAt(dip, t)));
+    }
+    // No single second moves the level more than a small, audibly smooth step.
+    expect(worst).toBeLessThan(0.08);
+    // S-curve: slow at the very start of the fade, not a straight ramp.
+    expect(envelopeAt(focus, 10 * 60 + 3, shape)).toBeLessThan(3 / 30);
+  });
+
+  it('produces sorted breakpoints bounded by the Mix', () => {
+    for (const component of locked.components) {
+      const times = breakpointTimes(component, locked);
+      expect(times[0]).toBe(0);
+      expect(times.at(-1)).toBe(locked.lengthSec);
+      expect([...times].sort((a, b) => a - b)).toEqual(times);
+    }
+  });
+});
+
+describe('validation', () => {
+  it('accepts the curated Mixes', () => {
+    for (const m of CURATED_MIXES) expect(() => sanitizeDraft(m)).not.toThrow();
+  });
+
+  it('rejects Mixes with nothing audible or bad timing', () => {
+    expect(() => sanitizeDraft(mix([c('quiet', 0, 5, 1)]))).toThrow(MixValidationError);
+    expect(() => sanitizeDraft(mix([c('brown', 0, 45, 0.5)]))).toThrow(MixValidationError);
+    expect(() => sanitizeDraft({ ...mix([c('brown', 0, 30, 0.5)]), lengthSec: 1234 })).toThrow(MixValidationError);
+  });
+});
+
+describe('share codes', () => {
+  it('round-trips a Mix through a link, new sounds included', () => {
+    const original = { ...mix([c('red', 0, 30, 0.7), c('hifreq', 5, 12, 0.3), c('wind', 10, 25, 0.55), c('quiet', 22, 26, 0.9)]), name: 'DEEP END' };
+    const code = encodeMix(original);
+    expect(code).toMatch(/^[A-Za-z0-9_-]+$/);
+    const back = decodeMix(code)!;
+    expect(back.name).toBe('DEEP END');
+    expect(canonicalize(back)).toBe(canonicalize(original));
+  });
+
+  it('rejects codes that are not Mixes', () => {
+    expect(decodeMix('not-a-mix')).toBeNull();
+    expect(decodeMix(encodeMix({ ...mix([c('brown', 0, 30, 0.5)]), name: 'X' }).slice(0, 10))).toBeNull();
+  });
+});
