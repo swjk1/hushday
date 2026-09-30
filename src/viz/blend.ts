@@ -54,6 +54,7 @@ function look(texture: StrandTexture, compact: boolean): Look {
         shape: (_a, s, k, t, R) => (s % 2 ? 1 : -0.35) * (0.35 + hash(s, k, Math.floor(t * 18))) * R * 0.05,
       };
     }
+    case 'tone': return { segments: seg, width: 1.5, shape: (a, _s, k, t, R) => Math.sin(a * 10 + t * 1.1 + k * 0.6) * R * 0.014 };
     case 'drops': return { segments: seg, width: 1, shape: (a, _s, k, t, R) => Math.sin(a * 6 + t * 0.6 + k) * R * 0.006 };
     case 'swell': return { segments: seg, width: 1.8, shape: (a, _s, k, t, R) => Math.sin(a * 2 - t * 0.6 + k * 0.12) * R * 0.045 * (0.55 + 0.45 * Math.sin(t * 0.4)) };
     case 'silk': return { segments: seg, width: 0.8, shape: (a, _s, k, t, R) => Math.sin(a * 2 + k * 0.4 + t * 0.3) * R * 0.05 };

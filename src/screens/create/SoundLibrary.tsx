@@ -49,39 +49,63 @@ export function SoundLibrary({ counts, full, onTap, onDrop }: Props) {
 }
 
 interface InspectorProps {
-  block: MixComponent;
+  /** Everything selected: one block from a chip, or a whole braid from its body. */
+  blocks: MixComponent[];
   lengthSec: number;
-  onChange: (patch: Partial<MixComponent>) => void;
+  /** Applied to every selected block; the function sees each block so relative values can be kept. */
+  onChange: (patch: (c: MixComponent) => Partial<MixComponent>) => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onClose: () => void;
 }
 
-/** Settings for the selected block. */
-export function BlockInspector({ block: c, lengthSec, onChange, onDuplicate, onDelete, onClose }: InspectorProps) {
-  const def = SOUNDS[c.sound];
-  const quiet = def.category === 'quiet';
+const clampLevel = (v: number) => Math.min(1, Math.max(0.05, Math.round(v * 100) / 100));
+
+/**
+ * Settings for the selection. With a braid selected, volume moves every block together,
+ * keeping their balance, and Delete removes them all.
+ */
+export function BlockInspector({ blocks, lengthSec, onChange, onDuplicate, onDelete, onClose }: InspectorProps) {
+  const many = blocks.length > 1;
+  const first = blocks[0];
+  const def = SOUNDS[first.sound];
+  const quiet = blocks.every(b => SOUNDS[b.sound].category === 'quiet');
+  const level = blocks.reduce((s, b) => s + b.level, 0) / blocks.length;
+  const slow = blocks.every(b => b.entry === 'slow');
+  const start = Math.min(...blocks.map(b => b.start));
+  const end = Math.max(...blocks.map(b => b.end));
+  const title = many ? blocks.map(b => SOUNDS[b.sound].label).join(' + ') : def.name;
   return (
-    <div className="inspector" style={{ ['--c' as string]: def.color, ['--thumb' as string]: def.color }}>
+    <div className={`inspector ${many ? 'braid' : ''}`} style={{ ['--c' as string]: def.color, ['--thumb' as string]: def.color }}>
       <div className="inspector-head">
-        <span className="inspector-swatch"><SoundSwatch sound={c.sound} level={c.level} /></span>
-        <strong>{def.name}</strong>
-        <span className="mono muted">{spanLabel(c.start, c.end, lengthSec)} · track {(c.row ?? 0) + 1}</span>
+        <span className="inspector-swatches">
+          {blocks.map(b => <span key={b.id} className="inspector-swatch"><SoundSwatch sound={b.sound} level={b.level} /></span>)}
+        </span>
+        <strong>{title}</strong>
+        {many && <span className="tiny-label">{blocks.length} blocks</span>}
+        <span className="mono muted">{spanLabel(start, end, lengthSec)} · track {(first.row ?? 0) + 1}</span>
         <button className="icon-btn" onClick={onClose} aria-label="Close block settings"><Icon name="close" size={16} /></button>
       </div>
       <label className="level">
-        <span className="mono muted">{quiet ? 'Depth' : 'Volume'}</span>
-        <input type="range" min={0.05} max={1} step={0.01} value={c.level} onChange={e => onChange({ level: Number(e.target.value) })} aria-label={`${def.name} ${quiet ? 'depth' : 'volume'}`} />
-        <span className="mono muted inspector-pct">{Math.round(c.level * 100)}</span>
+        <span className="mono muted">{quiet ? 'Depth' : many ? 'Volume, all' : 'Volume'}</span>
+        <input
+          type="range" min={0.05} max={1} step={0.01} value={level}
+          onChange={e => {
+            const delta = Number(e.target.value) - level;
+            onChange(c => ({ level: clampLevel(c.level + delta) }));
+          }}
+          aria-label={`${title} ${quiet ? 'depth' : 'volume'}`}
+        />
+        <span className="mono muted inspector-pct">{Math.round(level * 100)}</span>
       </label>
       <div className="inspector-actions">
         {!quiet && (
-          <button className={`toggle ${c.entry === 'slow' ? 'on' : ''}`} aria-pressed={c.entry === 'slow'} onClick={() => onChange({ entry: c.entry === 'slow' ? 'soft' : 'slow' })}>
+          <button className={`toggle ${slow ? 'on' : ''}`} aria-pressed={slow} onClick={() => onChange(() => ({ entry: slow ? 'soft' : 'slow' }))}>
             Slow in
           </button>
         )}
-        <button className="toggle" onClick={onDuplicate}>Duplicate</button>
-        <button className="toggle danger" onClick={onDelete}>Delete</button>
+        {!many && <button className="toggle" onClick={onDuplicate}>Duplicate</button>}
+        <button className="toggle danger" onClick={onDelete}>{many ? `Delete all ${blocks.length}` : 'Delete'}</button>
       </div>
     </div>
   );

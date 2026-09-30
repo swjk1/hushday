@@ -1,4 +1,3 @@
-import { SOUND_ORDER } from './sounds.js';
 import type { MixDraft } from './types.js';
 import { sanitizeDraft } from './validate.js';
 
@@ -8,6 +7,13 @@ import { sanitizeDraft } from './validate.js';
  * levels in percent; decoding runs the same validation as saving.
  */
 const VERSION = 1;
+
+/**
+ * Sound slot numbers inside a code. Positions are permanent: a retired sound keeps its slot
+ * (validation swaps it for its replacement) and new sounds go on the end, so old links keep
+ * decoding to the same Mix. Never reorder this list.
+ */
+const SLOTS: string[] = ['brown', 'red', 'pink', 'white', 'hifreq', 'rain', 'ocean', 'wind', 'focus', 'quiet', 'tone432', 'tone528', 'fan', 'stream', 'fire', 'night'];
 
 type Packed = [v: number, name: string, lengthMin: number, repeat: 0 | 1, parts: [sound: number, start: number, end: number, level: number, slow: 0 | 1, row?: number][]];
 
@@ -20,7 +26,7 @@ const fromBase64Url = (code: string) => {
 export function encodeMix(mix: MixDraft): string {
   const packed: Packed = [
     VERSION, mix.name, mix.lengthSec / 60, mix.repeat === 'sustain' ? 1 : 0,
-    mix.components.map(c => [SOUND_ORDER.indexOf(c.sound), Math.round(c.start / 10), Math.round(c.end / 10), Math.round(c.level * 100), c.entry === 'slow' ? 1 : 0, c.row ?? 0]),
+    mix.components.map(c => [SLOTS.indexOf(c.sound), Math.round(c.start / 10), Math.round(c.end / 10), Math.round(c.level * 100), c.entry === 'slow' ? 1 : 0, c.row ?? 0]),
   ];
   return toBase64Url(JSON.stringify(packed));
 }
@@ -33,7 +39,7 @@ export function decodeMix(code: string): MixDraft | null {
     return sanitizeDraft({
       name, lengthSec: lengthMin * 60, repeat: repeat ? 'sustain' : 'loop', parentMixId: null,
       components: parts.map(([s, start, end, level, slow, row], i) => ({
-        id: `s${i}`, sound: SOUND_ORDER[s], start: start * 10, end: end * 10, level: level / 100, entry: slow ? 'slow' : 'soft', row: row ?? i,
+        id: `s${i}`, sound: SLOTS[s], start: start * 10, end: end * 10, level: level / 100, entry: slow ? 'slow' : 'soft', row: row ?? i,
       })),
     });
   } catch {

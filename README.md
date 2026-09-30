@@ -6,7 +6,7 @@ Useful sound without managing your life around an app. Pick a **Mix**, choose ho
 
 | Concept | What it is | Where |
 | --- | --- | --- |
-| Mix | The audio package: sound blocks (brown, red, pink, white, hi-freq, rain, ocean, wind, focus audio, quiet) on track rows over time. Blocks that overlap play together | `src/core/types.ts` |
+| Mix | The audio package: sound blocks (brown, red, pink, white, 432 Hz and 528 Hz tones, fan, rain, ocean, wind, stream, fire, night, focus audio, quiet) on track rows over time. Blocks that overlap play together | `src/core/types.ts` |
 | Zone | A session that runs a Mix for 30m / 1h / 2h / 3h / until stopped. Loops or holds the Mix internally; cycles are never shown | `src/state/playback.ts`, `api/zones.ts` |
 | ShortExperience | The instant format, currently branded "Shot". Rename via `SHORT_FORMAT_NAME` in `src/core/catalog.ts` | `src/core/catalog.ts` |
 | Discovery | Each saved Mix is normalised into a fingerprint. First person to reach it gets FIRST DISCOVERY, later people get #N | `src/core/fingerprint.ts`, `server/mixes.ts` |

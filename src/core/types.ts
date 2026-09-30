@@ -1,7 +1,7 @@
 // Platform-independent product model. Nothing in src/core may touch the DOM or Node APIs,
 // so the same rules run in the browser, in Vercel Functions, and later in a native app.
 
-export type SoundId = 'brown' | 'red' | 'pink' | 'white' | 'hifreq' | 'rain' | 'ocean' | 'wind' | 'focus' | 'quiet';
+export type SoundId = 'brown' | 'red' | 'pink' | 'white' | 'tone432' | 'tone528' | 'fan' | 'rain' | 'ocean' | 'wind' | 'stream' | 'fire' | 'night' | 'focus' | 'quiet';
 export type SoundCategory = 'continuous' | 'functional' | 'quiet';
 
 /** How a component arrives. "slow" is the long swell used for things like rain slowly entering. */

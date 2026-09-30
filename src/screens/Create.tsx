@@ -18,7 +18,8 @@ import { BlockInspector, DragGhost, SoundLibrary } from './create/SoundLibrary';
 
 export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string }) {
   const [draft, setDraft] = useState<MixDraft>(() => initialDraft(mode, sourceId));
-  const [selected, setSelected] = useState<string | null>(null);
+  // Every selected block; a braid selects as one. The inspector shows the first.
+  const [selected, setSelected] = useState<string[]>([]);
   const [onboarding, setOnboarding] = useState(() => mode === 'new' && needsOnboarding());
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -27,7 +28,7 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
   const previewing = playingPreview && info.sourceId === DRAFT;
   const L = draft.lengthSec;
   const full = draft.components.length >= MAX_COMPONENTS;
-  const block = draft.components.find(c => c.id === selected) ?? null;
+  const blocks = selected.map(id => draft.components.find(c => c.id === id)).filter((c): c is MixComponent => !!c);
   const audible = draft.components.some(c => SOUNDS[c.sound].category !== 'quiet');
 
   const counts = useMemo(() => {
@@ -64,12 +65,10 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
     setError(null);
     setDraft(d => ({ ...d, ...(typeof change === 'function' ? change(d) : change) }));
   };
-  const updateBlock = (id: string, patch: Partial<MixComponent>) =>
-    update(d => ({ components: d.components.map(c => (c.id === id ? { ...c, ...patch } : c)) }));
   const removeBlock = (id: string) => {
     const c = draft.components.find(x => x.id === id);
     if (c) track('sound_component_removed', { sound: c.sound, count: draft.components.length - 1 });
-    if (selected === id) setSelected(null);
+    setSelected(s => s.filter(x => x !== id));
     update(d => ({ components: d.components.filter(x => x.id !== id) }));
   };
 
@@ -77,7 +76,7 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
   // so quick successive taps or drops never overwrite each other.
   const removeGroup = (ids: string[]) => {
     track('sound_component_removed', { count: draft.components.length - ids.length, combination: ids.length });
-    if (selected && ids.includes(selected)) setSelected(null);
+    setSelected(s => s.filter(x => !ids.includes(x)));
     update(d => ({ components: d.components.filter(x => !ids.includes(x.id)) }));
   };
 
@@ -85,7 +84,7 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
     const id = source.kind === 'block' ? source.id : source.kind === 'group' ? source.ids[0] : cid();
     if (source.kind === 'library') track('sound_component_added', { sound: source.sound, count: draft.components.length + 1, combined: !!spot.combinedWith });
     haptic(spot.combinedWith ? [8, 40, 14] : 6);
-    setSelected(id);
+    setSelected(source.kind === 'group' ? source.ids : [id]);
     update(d => {
       if (source.kind === 'group') {
         return source.ids.every(x => d.components.some(c => c.id === x)) ? applyDrop(d, source, spot).draft : {};
@@ -111,7 +110,7 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
     const id = cid();
     track('sound_component_added', { sound, count: draft.components.length + 1 });
     haptic(6);
-    setSelected(id);
+    setSelected([id]);
     update(d => {
       const spot = planTap(d, sound);
       return spot ? applyDrop(d, { kind: 'library', sound }, spot, id).draft : {};
@@ -120,7 +119,7 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
   const duplicate = (blockId: string) => {
     if (!duplicateBlock(draft, blockId)) return toast(full ? `Up to ${MAX_COMPONENTS} blocks per Mix` : 'No room for a copy');
     const id = cid();
-    setSelected(id);
+    setSelected([id]);
     update(d => duplicateBlock(d, blockId, id)?.draft ?? {});
   };
 
@@ -204,18 +203,25 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
           previewing={previewing}
           onSelect={setSelected}
           onDrop={dropped}
-          onResize={(id, patch) => updateBlock(id, patch)}
+          onResize={patches =>
+            update(d => ({
+              components: d.components.map(c => {
+                const p = patches.find(x => x.id === c.id);
+                return p ? { ...c, start: p.start, end: p.end } : c;
+              }),
+            }))
+          }
           onSeek={f => preview(draft, snap(f * L) >= L ? 0 : f * L)}
         />
 
-        {block && (
+        {blocks.length > 0 && (
           <BlockInspector
-            block={block}
+            blocks={blocks}
             lengthSec={L}
-            onChange={patch => updateBlock(block.id, patch)}
-            onDuplicate={() => duplicate(block.id)}
-            onDelete={() => removeBlock(block.id)}
-            onClose={() => setSelected(null)}
+            onChange={patch => update(d => ({ components: d.components.map(c => (selected.includes(c.id) ? { ...c, ...patch(c) } : c)) }))}
+            onDuplicate={() => duplicate(blocks[0].id)}
+            onDelete={() => (blocks.length > 1 ? removeGroup(selected) : removeBlock(blocks[0].id))}
+            onClose={() => setSelected([])}
           />
         )}
 

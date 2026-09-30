@@ -28,10 +28,15 @@ const WAVE: Record<Exclude<SoundId, 'quiet'>, WaveStyle> = {
   red: { len: 160, threads: 2, width: 3.2, gap: 0.6, lane: 0.2, speed: 0.32 },
   pink: { len: 38, threads: 3, width: 1.3, gap: 1.2, lane: 0.02, speed: 1.3 },
   white: { len: 22, threads: 3, width: 1, gap: 2, lane: -0.08, speed: 1.9, grain: true, dash: [1.2, 3.2] },
-  hifreq: { len: 11, threads: 2, width: 1, gap: 0.5, lane: -0.2, speed: 2.4, zigzag: true },
+  tone432: { len: 34, threads: 2, width: 1.4, gap: 0.45, lane: -0.06, speed: 1.1 },
+  tone528: { len: 28, threads: 2, width: 1.3, gap: 0.45, lane: -0.1, speed: 1.25 },
   rain: { len: 70, threads: 2, width: 1, gap: 1, lane: -0.04, speed: 0.8, drops: true },
   ocean: { len: 190, threads: 4, width: 1.5, gap: 0.35, lane: 0.07, speed: 0.4, breathe: true },
   wind: { len: 130, threads: 4, width: 0.8, gap: 1.35, lane: -0.12, speed: 0.5, silk: true },
+  fan: { len: 120, threads: 2, width: 1.6, gap: 0.5, lane: 0.05, speed: 0.9 },
+  stream: { len: 44, threads: 3, width: 1.1, gap: 1.1, lane: -0.03, speed: 1.6 },
+  fire: { len: 18, threads: 3, width: 1.2, gap: 1.4, lane: 0.06, speed: 1.7, grain: true },
+  night: { len: 24, threads: 2, width: 1, gap: 0.9, lane: -0.14, speed: 1.3, dash: [2, 6], pulse: true },
   focus: { len: 28, threads: 2, width: 1.7, gap: 0.9, lane: 0, speed: 1.5, dash: [5, 4], pulse: true },
 };
 

@@ -192,7 +192,7 @@ class AudioEngine {
       if (isQuiet(c)) continue;
       const node = new AudioWorkletNode(ctx, 'hush-gen', {
         numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2],
-        processorOptions: { type: c.sound, seed: seedOf(`${info.sourceId}:${c.id}`) },
+        processorOptions: { type: c.sound, seed: seedOf(`${info.sourceId}:${c.id}`), freq: SOUNDS[c.sound].freq },
       });
       const gain = ctx.createGain();
       gain.gain.value = 0;

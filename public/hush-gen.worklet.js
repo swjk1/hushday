@@ -43,14 +43,6 @@ function red(c, w) {
   return c.lp2 * 1.4;
 }
 
-// Differentiated white noise (rising with frequency), high-passed so nothing sits low.
-function hifreq(c, w) {
-  const d = w - c.prev;
-  c.prev = w;
-  c.hp += (d - c.hp) * 0.25;
-  return (d - c.hp * 0.6) * 0.16;
-}
-
 class HushGenerator extends AudioWorkletProcessor {
   constructor(options) {
     super();
@@ -59,6 +51,9 @@ class HushGenerator extends AudioWorkletProcessor {
     const seed = (o.seed || 1) >>> 0;
     this.ch = [channel(seed * 2654435761), channel((seed + 7919) * 2246822519)];
     this.shared = makeRng(seed ^ 0x5bd1e995);
+    // Pure tone: a fixed pitch in Hz, identical in both channels so headphones hear no beating.
+    this.freq = Number(o.freq) > 0 ? Number(o.freq) : 0;
+    this.phase = this.shared();
     this.alive = true;
     this.port.onmessage = event => { if (event.data === 'stop') this.alive = false; };
     this.dt = 1 / sampleRate;
@@ -74,6 +69,17 @@ class HushGenerator extends AudioWorkletProcessor {
     // Rain intensity drift
     this.rainDrift = 0.5;
     this.rainTarget = 0.5;
+    // Fire: a slow flicker on the roar.
+    this.flick = 0.7;
+    this.flickTarget = 0.7;
+    // Stream: a few resonators per channel whose pitches wander quickly, which is the gurgle.
+    this.res = [0, 1].map(() => [0, 1, 2].map(() => ({ low: 0, band: 0, f: 400 + this.shared() * 1800, target: 400 + this.shared() * 1800 })));
+    // Night: three crickets at different pitches, rates and positions, each pausing now and then.
+    this.crickets = [
+      { f: 4100, rate: 2.1, trill: 34, len: 0.42, pan: 0.25, phase: this.shared(), on: true },
+      { f: 4650, rate: 1.7, trill: 28, len: 0.5, pan: 0.78, phase: this.shared(), on: true },
+      { f: 3750, rate: 2.7, trill: 41, len: 0.3, pan: 0.5, phase: this.shared(), on: false },
+    ];
   }
 
   swell() {
@@ -116,12 +122,14 @@ class HushGenerator extends AudioWorkletProcessor {
         const mid = (l + r) * 0.5;
         l = mid * 0.7 + l * 0.3;
         r = mid * 0.7 + r * 0.3;
-      } else if (type === 'hifreq') {
-        l = hifreq(this.ch[0], white(this.ch[0]));
-        r = hifreq(this.ch[1], white(this.ch[1]));
+      } else if (this.freq) {
+        // Phase accumulates in cycles and wraps, so long sessions never lose precision.
+        this.phase += this.freq * this.dt;
+        if (this.phase >= 1) this.phase -= 1;
+        l = r = Math.sin(TAU * this.phase) * 0.5;
       } else if (type === 'wind') {
         if (i === 0) {
-          if (this.shared() < 0.006) this.gustTarget = 0.25 + this.shared() * 0.75;
+          if (this.shared() < 0.006) this.gustTarget = 0.4 + this.shared() * 0.6;
           if (this.shared() < 0.004) this.centreTarget = 240 + this.shared() * 700;
           this.gust += (this.gustTarget - this.gust) * 0.004;
           this.centre += (this.centreTarget - this.centre) * 0.002;
@@ -134,7 +142,8 @@ class HushGenerator extends AudioWorkletProcessor {
           c.low += f * c.band;
           const high = x - c.low - 0.55 * c.band;
           c.band += f * high;
-          const v = (c.band * 1.6 + c.low * 0.35) * (0.2 + 0.8 * this.gust);
+          // Gusts swing the level by about half rather than fivefold, so the bed stays steady.
+          const v = (c.band * 1.6 + c.low * 0.35) * (0.5 + 0.5 * this.gust);
           if (k === 0) l = v; else r = v;
         }
       } else if (type === 'rain') {
@@ -163,29 +172,123 @@ class HushGenerator extends AudioWorkletProcessor {
         }
       } else if (type === 'ocean') {
         const s = this.swell();
-        const env = 0.16 + 0.84 * s;
-        const k = 0.015 + 0.11 * s;
+        // Waves swing between about half and full rather than near-silence and full.
+        const env = 0.52 + 0.48 * s;
+        const k = 0.03 + 0.08 * s;
         for (let j = 0; j < 2; j++) {
           const c = this.ch[j];
           const w = white(c);
           const noise = brown(c, w) * 0.75 + pink(c, w) * 0.6;
           c.lp += (noise - c.lp) * k;
           c.lp2 += (c.lp - c.lp2) * 0.5;
-          const foam = (noise - c.lp) * s * s * s * 0.22;
+          const foam = (noise - c.lp) * s * s * s * 0.16;
           const v = (c.lp2 * 1.5 + foam) * env;
           if (j === 0) l = v; else r = v;
         }
+      } else if (type === 'fire') {
+        if (i === 0) {
+          if (this.shared() < 0.012) this.flickTarget = 0.45 + this.shared() * 0.55;
+          this.flick += (this.flickTarget - this.flick) * 0.012;
+        }
+        for (let k = 0; k < 2; k++) {
+          const c = this.ch[k];
+          const w = white(c);
+          // Deep roar: brown noise low-passed hard, flickering slowly.
+          c.lp += (brown(c, w) - c.lp) * 0.012;
+          const roar = c.lp * 2.4 * (0.55 + 0.45 * this.flick);
+          // Crackle: sparse, very short high-passed bursts, a few dozen a second at most.
+          if (c.rnd() < (9 + 12 * this.flick) * this.dt) {
+            c.drop = 0.3 + c.rnd() * 0.7;
+            c.decay = 0.965 + c.rnd() * 0.034;
+          }
+          c.drop *= c.decay;
+          const w2 = white(c);
+          c.hp += (w2 - c.hp) * 0.12;
+          const crackle = c.drop * (w2 - c.hp) * 1.1;
+          // A little hiss for the air being drawn in.
+          const hiss = (pink(c, w) - c.lp * 0.3) * 0.12;
+          const v = roar + crackle + hiss;
+          if (k === 0) l = v; else r = v;
+        }
+      } else if (type === 'stream') {
+        if ((i & 63) === 0) {
+          for (const bank of this.res) {
+            for (const q of bank) {
+              if (this.shared() < 0.06) q.target = 350 + this.shared() * 2200;
+              q.f += (q.target - q.f) * 0.1;
+            }
+          }
+        }
+        for (let k = 0; k < 2; k++) {
+          const c = this.ch[k];
+          const w = white(c);
+          let gurgle = 0;
+          for (const q of this.res[k]) {
+            const F = 2 * Math.sin((Math.PI * q.f) / sampleRate);
+            q.low += F * q.band;
+            const high = w - q.low - 0.35 * q.band;
+            q.band += F * high;
+            gurgle += q.band;
+          }
+          // Steady wash underneath, with the deep end trimmed so it stays light.
+          const p = pink(c, w);
+          c.lp += (p - c.lp) * 0.02;
+          const wash = (p - c.lp) * 0.55;
+          const v = gurgle * 0.28 + wash;
+          if (k === 0) l = v; else r = v;
+        }
+      } else if (type === 'fan') {
+        const t = this.t;
+        // Motor hum with a couple of harmonics and a faint blade-pass wobble, the same in both ears.
+        const wobble = 1 + 0.12 * Math.sin(TAU * 23.5 * t);
+        const hum = (0.5 * Math.sin(TAU * 118 * t) + 0.22 * Math.sin(TAU * 236 * t) + 0.08 * Math.sin(TAU * 354 * t)) * wobble;
+        for (let k = 0; k < 2; k++) {
+          const c = this.ch[k];
+          // Air rush: pink noise low-passed around 900 Hz, steady.
+          c.lp += (pink(c, white(c)) - c.lp) * 0.11;
+          const v = hum * 0.22 + c.lp * 1.5;
+          if (k === 0) l = v; else r = v;
+        }
+      } else if (type === 'night') {
+        const t = this.t;
+        if (i === 0) {
+          for (const cr of this.crickets) if (this.shared() < 0.0025) cr.on = !cr.on;
+        }
+        // A faint, dark bed so the chirps sit in something.
+        for (let k = 0; k < 2; k++) {
+          const c = this.ch[k];
+          c.lp += (pink(c, white(c)) - c.lp) * 0.04;
+          if (k === 0) l = c.lp * 0.9; else r = c.lp * 0.9;
+        }
+        for (const cr of this.crickets) {
+          if (!cr.on) continue;
+          const cycle = 1 / cr.rate;
+          const tt = ((t * cr.rate + cr.phase) % 1) * cycle;
+          if (tt >= cr.len) continue;
+          // Each chirp is a short tone burst, itself pulsing (the trill), rounded at both ends.
+          const env = Math.sin((Math.PI * tt) / cr.len) * (0.5 + 0.5 * Math.sin(TAU * cr.trill * tt));
+          const v = env * Math.sin(TAU * cr.f * t) * 0.09;
+          l += v * (1 - cr.pan);
+          r += v * cr.pan;
+        }
       } else if (type === 'focus') {
         const t = this.t;
-        const drift = 0.85 + 0.15 * Math.sin(TAU * 0.05 * t);
-        const padL = 0.35 * Math.sin(TAU * 110 * t) + 0.25 * Math.sin(TAU * 164.81 * t) + 0.2 * Math.sin(TAU * 220 * t) + 0.1 * Math.sin(TAU * 329.63 * t);
-        const padR = 0.35 * Math.sin(TAU * 110.35 * t) + 0.25 * Math.sin(TAU * 165.16 * t) + 0.2 * Math.sin(TAU * 220.35 * t) + 0.1 * Math.sin(TAU * 329.98 * t);
-        // Smooth amplitude modulation around 16 pulses per second, 50% depth.
-        const am = 1 - 0.5 * (0.5 - 0.5 * Math.cos(TAU * 16 * t));
-        const nl = pink(this.ch[0], white(this.ch[0]));
-        const nr = pink(this.ch[1], white(this.ch[1]));
-        l = (padL * 0.42 * drift + nl * 0.75) * am;
-        r = (padR * 0.42 * drift + nr * 0.75) * am;
+        const drift = 0.88 + 0.12 * Math.sin(TAU * 0.04 * t);
+        // A warm two-note pad (A2 + E3 with a whisper of the octave), barely detuned between
+        // ears so it shimmers without an audible beat.
+        const padL = 0.5 * Math.sin(TAU * 110 * t) + 0.3 * Math.sin(TAU * 164.81 * t) + 0.12 * Math.sin(TAU * 220 * t);
+        const padR = 0.5 * Math.sin(TAU * 110.15 * t) + 0.3 * Math.sin(TAU * 164.96 * t) + 0.12 * Math.sin(TAU * 220.15 * t);
+        // Rounded pulse at 10 per second, 40% deep, a quarter cycle apart in each ear so it
+        // rocks gently instead of hammering. The pad is pulsed less than the noise.
+        const pl = 0.5 - 0.5 * Math.cos(TAU * 10 * t);
+        const pr = 0.5 - 0.5 * Math.cos(TAU * 10 * t - Math.PI / 2);
+        // Low-passed pink noise: a warmer bed than raw pink, with the fizz taken off.
+        const c0 = this.ch[0];
+        const c1 = this.ch[1];
+        c0.lp += (pink(c0, white(c0)) - c0.lp) * 0.06;
+        c1.lp += (pink(c1, white(c1)) - c1.lp) * 0.06;
+        l = padL * 0.3 * drift * (1 - 0.15 * pl) + c0.lp * 1.7 * (1 - 0.4 * pl);
+        r = padR * 0.3 * drift * (1 - 0.15 * pr) + c1.lp * 1.7 * (1 - 0.4 * pr);
       }
       left[i] = l;
       if (right !== left) right[i] = r;

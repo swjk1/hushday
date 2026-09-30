@@ -1,4 +1,4 @@
-import { SOUNDS, isSoundId } from './sounds.js';
+import { LEGACY_SOUNDS, SOUNDS, isSoundId } from './sounds.js';
 import type { MixComponent, MixDraft } from './types.js';
 
 export const LENGTH_OPTIONS_MIN = [10, 20, 30, 45, 60];
@@ -33,7 +33,9 @@ export function sanitizeDraft(input: unknown): MixDraft {
   const ids = new Set<string>();
   const components: MixComponent[] = list.map((item, index) => {
     const c = (item ?? {}) as Record<string, unknown>;
-    if (!isSoundId(c.sound)) fail('Unknown sound in this Mix');
+    // Mixes saved before a sound was retired keep playing with its nearest replacement.
+    const sound = typeof c.sound === 'string' && c.sound in LEGACY_SOUNDS ? LEGACY_SOUNDS[c.sound] : c.sound;
+    if (!isSoundId(sound)) fail('Unknown sound in this Mix');
     let id = typeof c.id === 'string' && c.id.length <= 40 && c.id ? c.id : `c${index}`;
     if (ids.has(id)) id = `${id}-${index}`;
     ids.add(id);
@@ -43,7 +45,7 @@ export function sanitizeDraft(input: unknown): MixDraft {
     if (start < 0 || end > lengthSec || end - start < MIN_SPAN_SEC) fail('Each sound needs at least a minute inside the Mix');
     const level = Math.round(Math.min(1, Math.max(0, Number(c.level) || 0)) * 100) / 100;
     const row = Number.isInteger(c.row) ? Math.min(MAX_COMPONENTS - 1, Math.max(0, c.row as number)) : index;
-    return { id, sound: c.sound as MixComponent['sound'], start, end, level, entry: c.entry === 'slow' ? 'slow' : 'soft', row };
+    return { id, sound: sound as MixComponent['sound'], start, end, level, entry: c.entry === 'slow' ? 'slow' : 'soft', row };
   });
 
   if (!components.some(c => SOUNDS[c.sound].category !== 'quiet' && c.level >= 0.05)) fail('Add a sound you can hear');

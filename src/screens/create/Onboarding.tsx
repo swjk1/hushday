@@ -17,7 +17,7 @@ function BlockDemo() {
     const timer = setInterval(() => setRound(r => r + 1), 2800);
     return () => clearInterval(timer);
   }, []);
-  const incoming = (['rain', 'hifreq', 'wind'] as SoundId[])[round % 3];
+  const incoming = (['rain', 'tone432', 'wind'] as SoundId[])[round % 3];
   return (
     <div className="onb-grid" aria-hidden="true">
       <span className="onb-block" style={{ ['--c' as string]: SOUNDS.brown.color, left: '8%', width: '62%', top: 8 }}>
@@ -39,7 +39,7 @@ const STEPS = [
     body: 'Every sound has its own look. Spiky is bright, silky is soft, heavy is deep. Tap ▶ on a card to hear it first.',
     art: () => (
       <div className="onb-orbs">
-        {(['red', 'hifreq', 'wind'] as SoundId[]).map((s, i) => (
+        {(['red', 'tone528', 'wind'] as SoundId[]).map((s, i) => (
           <span key={s} className="onb-orb">
             <BlendCanvas layers={[orb(s)]} seed={i + 2} compact />
             <span className="mono">{SOUNDS[s].label}</span>

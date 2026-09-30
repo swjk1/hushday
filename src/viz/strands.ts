@@ -20,6 +20,7 @@ export function wobble(texture: StrandTexture, u: number, i: number, k: number, 
     case 'drops': return Math.sin(u * 14 + time * 0.8 + k) * 0.6;
     case 'swell': return Math.sin(u * 5 - time * 0.5 + k * 0.12) * 3.2;
     case 'pulse': return Math.sin(u * 18 + time + k * 0.5) * 0.8;
+    case 'tone': return Math.sin(u * 22 + time * 1.2 + k * 0.5) * 1.3;
     default: return 0;
   }
 }

@@ -55,6 +55,17 @@ describe('timeline', () => {
     expect(envelopeAt(brown, locked.lengthSec, locked)).toBe(1);
   });
 
+  it('starts a slow entry already audible and swells within 90 seconds', () => {
+    const m = mix([c('brown', 0, 30, 0.7), { ...c('rain', 10, 25, 0.5), entry: 'slow' }]);
+    const rain = m.components[1];
+    expect(envelopeAt(rain, 10 * 60 - 1, m)).toBe(0);
+    expect(envelopeAt(rain, 10 * 60, m)).toBeCloseTo(0.2);
+    expect(envelopeAt(rain, 10 * 60 + 45, m)).toBeGreaterThan(0.5);
+    expect(envelopeAt(rain, 10 * 60 + 90, m)).toBe(1);
+    // Silence is pinned a second before the step so the audio ramp is short, not minutes long.
+    expect(breakpointTimes(rain, m)).toContain(10 * 60 - 1);
+  });
+
   it('ducks everything during a quiet section', () => {
     expect(duckAt(locked, 23.5 * 60)).toBeLessThan(0.2);
     expect(duckAt(locked, 10 * 60)).toBe(1);
@@ -108,12 +119,20 @@ describe('validation', () => {
 
 describe('share codes', () => {
   it('round-trips a Mix through a link, new sounds included', () => {
-    const original = { ...mix([c('red', 0, 30, 0.7), c('hifreq', 5, 12, 0.3), c('wind', 10, 25, 0.55), c('quiet', 22, 26, 0.9)]), name: 'DEEP END' };
+    const original = { ...mix([c('red', 0, 30, 0.7), c('tone528', 5, 12, 0.3), c('wind', 10, 25, 0.55), c('quiet', 22, 26, 0.9)]), name: 'DEEP END' };
     const code = encodeMix(original);
     expect(code).toMatch(/^[A-Za-z0-9_-]+$/);
     const back = decodeMix(code)!;
     expect(back.name).toBe('DEEP END');
     expect(canonicalize(back)).toBe(canonicalize(original));
+  });
+
+  it('keeps old links playable after a sound is retired', () => {
+    // Slot 4 was Hi-freq; the number stays reserved and decodes to its replacement.
+    const legacy = btoa(JSON.stringify([1, 'OLD', 30, 0, [[4, 0, 180, 40, 0, 0], [5, 0, 180, 60, 0, 1]]]));
+    const back = decodeMix(legacy)!;
+    expect(back.components.map(c => c.sound)).toEqual(['white', 'rain']);
+    expect(sanitizeDraft(mix([{ ...c('white', 0, 30, 0.4), sound: 'hifreq' as never }])).components[0].sound).toBe('white');
   });
 
   it('rejects codes that are not Mixes', () => {
