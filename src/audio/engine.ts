@@ -71,6 +71,7 @@ class AudioEngine {
   private ctx: AudioContext | null = null;
   private volumeNode: GainNode | null = null;
   private element: HTMLAudioElement | null = null;
+  private stream: MediaStream | null = null;
   private moduleReady: Promise<void> | null = null;
   private live: Live | null = null;
   private frozen = 0;
@@ -154,6 +155,7 @@ class AudioEngine {
         limiter.connect(dest);
         const element = new Audio();
         element.srcObject = dest.stream;
+        this.stream = dest.stream;
         element.setAttribute('playsinline', '');
         this.element = element;
       }
@@ -168,10 +170,26 @@ class AudioEngine {
     void this.element?.play().catch(() => {});
   }
 
+  /**
+   * On the media-element path (Android Chrome) the element plays from a buffer that can run
+   * seconds behind the graph after a long session, so after a switch the old Mix would keep
+   * sounding until something flushed it. Re-attaching the stream drops that buffer, and the
+   * new session is heard at once.
+   */
+  private flushElement() {
+    const el = this.element;
+    if (!el || !this.stream) return;
+    el.srcObject = null;
+    el.srcObject = this.stream;
+    void el.play().catch(() => {});
+  }
+
   async start(info: SessionInfo, offset = 0) {
     this.wake();
     const ctx = this.ctx!;
+    const switching = !!this.live;
     this.teardown(0.35);
+    if (switching) this.flushElement();
     this.frozen = offset;
     this.set('playing', info);
     await this.moduleReady;
@@ -279,7 +297,10 @@ class AudioEngine {
   }
 
   stop() {
+    const wasLive = !!this.live;
     this.teardown(0.6);
+    // Let the fade be heard, then drop anything the element still has buffered so Stop is final.
+    if (wasLive) window.setTimeout(() => { if (!this.live) this.flushElement(); }, 650);
     clearInterval(this.timer);
     this.frozen = 0;
     this.set('idle', null);
