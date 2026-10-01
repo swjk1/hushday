@@ -1,10 +1,11 @@
 import { SOUNDS } from '../core/sounds';
 import type { SoundId } from '../core/types';
-import { hash, wobble } from './strands';
+import { hash } from './strands';
+import { BANDS, BAND_PX, QUIET_BAND } from './bands';
 
 /**
  * One track row of the block editor. Each block is a sheaf of fine threads in its sound's
- * colour and texture. Where blocks on the same row overlap, the sheaves swing around each
+ * colour, shaped by that sound's band (bands.ts). Where blocks on the same row overlap, the sheaves swing around each
  * other on offset phases and pass straight through one another; colours add where they
  * cross (screen blend), so the knot glows where sounds meet instead of stacking.
  */
@@ -94,7 +95,7 @@ export function drawRow(g: CanvasRenderingContext2D, w: number, h: number, block
   // One slow wave every PERIOD_PX, whatever the row's width, so the knot reads as a long drift.
   const radians = (i: number) => (xAt(i) / PERIOD_PX) * Math.PI * 2 + time * 0.25;
   const swing = h * 0.22;
-  const scale = Math.min(1.2, h / 42);
+  const at = (x: number) => Math.round(Math.min(cols, Math.max(0, (x / w) * cols)));
 
   g.save();
   g.globalCompositeOperation = 'screen';
@@ -102,87 +103,93 @@ export function drawRow(g: CanvasRenderingContext2D, w: number, h: number, block
   g.lineJoin = 'round';
   audible.forEach((b, j) => {
     const def = SOUNDS[b.sound];
-    const texture = def.strand.texture;
-    const threads = 7 + Math.round(b.level * 3);
+    const band = BANDS[b.sound as Exclude<SoundId, 'quiet'>];
+    const threads = band.threads + Math.round(b.level * 3);
     const lineWidth = Math.max(0.9, def.strand.width * 0.6);
     const fade = b.ghost ? 0.25 : 1;
-    // Each thread runs a little out of phase with its neighbours, so the sheaf twists
-    // softly on its own and passes straight through the others where they cross.
-    const path = (k: number) => {
-      const off = k - (threads - 1) / 2;
-      g.beginPath();
-      let pen = false;
+    const centre = (i: number) => mid + Math.sin(radians(i) + phase[j]) * swing * braid[j][i];
+    g.strokeStyle = def.color;
+    for (let k = 0; k < threads; k++) {
+      const c = { h, level: b.level, off: k - (threads - 1) / 2, f: k / Math.max(1, threads - 1) };
+      const pts: (Point | null)[] = [];
       for (let i = 0; i <= cols; i++) {
         const e = env[j][i];
         if (!e) {
-          pen = false;
+          pts.push(null);
           continue;
         }
-        const k2 = braid[j][i];
-        const angle = radians(i) + phase[j] + off * 0.16;
-        const spread = (4.4 - 2.1 * k2) * scale * (0.3 + 0.7 * e);
-        const y = mid + Math.sin(angle) * swing * k2 + off * spread + wobble(texture, i / cols, i, k, time) * 0.55 * e;
-        if (pen) g.lineTo(xAt(i), y);
-        else g.moveTo(xAt(i), y);
-        pen = true;
+        const u = xAt(i) / BAND_PX;
+        // Each sound keeps its own shape alone, and tightens where it braids so the knot still reads.
+        const y = centre(i) + band.y(u, i, k, threads, time, c) * (0.3 + 0.7 * e) * (1 - 0.45 * braid[j][i]);
+        pts.push([xAt(i), y, band.alpha ? band.alpha(u, k, threads, time) : 1]);
       }
-    };
-    g.strokeStyle = def.color;
-    if (texture === 'pulse') g.setLineDash([3, 4]);
-    for (let k = 0; k < threads; k++) {
-      if (texture === 'pulse') g.lineDashOffset = -time * 18 - k * 2;
-      path(k);
-      // A faint wide halo under each thread gives the glow where colours meet.
-      g.globalAlpha = 0.07 * fade;
-      g.lineWidth = 6;
-      g.stroke();
-      g.globalAlpha = (0.45 + 0.4 * b.level) * (0.75 + 0.25 * hash(k, j + 3)) * fade;
-      g.lineWidth = lineWidth;
-      g.stroke();
+      strokeThread(g, pts, (0.45 + 0.4 * b.level) * (0.75 + 0.25 * hash(k, j + 3)) * fade, lineWidth, true);
     }
-    g.setLineDash([]);
-
-    if (texture === 'drops') {
-      g.fillStyle = '#CFE0FF';
-      const count = Math.max(4, Math.floor(w / 12));
-      for (let d = 0; d < count; d++) {
-        const u = (hash(d, 1) + time * 0.05 * (0.5 + hash(d, 2))) % 1;
-        const i = Math.round(u * cols);
-        if (!env[j][i]) continue;
-        const centre = mid + Math.sin(radians(i) + phase[j]) * swing * braid[j][i];
-        g.globalAlpha = (0.45 + 0.55 * hash(d, 4)) * fade;
-        g.beginPath();
-        g.arc(xAt(i), centre + (hash(d, 3) - 0.5) * 8 * 4.4 * scale * env[j][i] * 0.5, 1.2, 0, Math.PI * 2);
-        g.fill();
-      }
+    if (band.overlay) {
+      g.save();
+      band.overlay(g, { w, h, time, fade, envAt: x => env[j][at(x)], centreAt: x => centre(at(x)) });
+      g.restore();
     }
   });
   g.restore();
 
-  // Quiet blocks: grey strands that pinch to a hairline across their span.
+  // Quiet blocks: grey strands that close to a point at the centre and open again, dimming as they meet.
+  g.strokeStyle = '#9d978b';
   for (const q of quiet) {
-    g.strokeStyle = '#9d978b';
-    g.lineWidth = 1;
     const span = q.end - q.start;
-    for (let k = 0; k < 5; k++) {
-      g.globalAlpha = (0.35 + 0.4 * hash(k, 9)) * (q.ghost ? 0.3 : 1);
-      g.beginPath();
-      let pen = false;
+    const n = QUIET_BAND.strands;
+    for (let k = 0; k < n; k++) {
+      const pts: (Point | null)[] = [];
       for (let i = 0; i <= cols; i++) {
         const t = tAt(i);
         if (t < q.start || t > q.end) {
-          pen = false;
+          pts.push(null);
           continue;
         }
         const u = (t - q.start) / span;
-        const pinch = 1 - q.level * smooth(u / 0.4) * smooth((1 - u) / 0.4);
-        const y = mid + (k / 4 - 0.5) * h * 0.62 * pinch;
-        if (pen) g.lineTo(xAt(i), y);
-        else g.moveTo(xAt(i), y);
-        pen = true;
+        pts.push([xAt(i), mid + (k / (n - 1) - 0.5) * h * 0.62 * QUIET_BAND.spread(u, q.level), QUIET_BAND.alpha(u, q.level)]);
       }
-      g.stroke();
+      strokeThread(g, pts, (0.35 + 0.4 * hash(k, 9)) * (q.ghost ? 0.3 : 1), 1, false);
     }
   }
   g.globalAlpha = 1;
+}
+
+type Point = [x: number, y: number, alpha: number];
+
+/**
+ * One thread, broken into runs wherever the block is absent. With a halo, a faint wide stroke
+ * sits under the thin one so colours glow where they cross. Brightness can vary along the
+ * thread, so it is drawn in short pieces, each at its mean brightness.
+ */
+function strokeThread(g: CanvasRenderingContext2D, pts: (Point | null)[], base: number, lineWidth: number, halo: boolean) {
+  const runs: Point[][] = [];
+  let run: Point[] = [];
+  for (const p of pts) {
+    if (p) run.push(p);
+    else {
+      if (run.length > 1) runs.push(run);
+      run = [];
+    }
+  }
+  if (run.length > 1) runs.push(run);
+  const STEP = 5;
+  for (const r of runs) {
+    const even = r.every(p => p[2] === r[0][2]);
+    for (let a = 0; a < r.length - 1; a += even ? r.length : STEP) {
+      const piece = r.slice(a, even ? r.length : Math.min(r.length, a + STEP + 1));
+      const alpha = base * (piece.reduce((m, p) => m + p[2], 0) / piece.length);
+      g.beginPath();
+      g.moveTo(piece[0][0], piece[0][1]);
+      for (let i = 1; i < piece.length; i++) g.lineTo(piece[i][0], piece[i][1]);
+      if (halo) {
+        g.globalAlpha = 0.07 * Math.min(1, alpha * 1.4);
+        g.lineWidth = 6;
+        g.stroke();
+      }
+      g.globalAlpha = alpha;
+      g.lineWidth = lineWidth;
+      g.stroke();
+    }
+  }
 }
