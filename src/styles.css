@@ -293,6 +293,16 @@ input[type='range'] { accent-color: var(--c, #cde1ad); }
 .sound-card-texture { display: block; width: 100%; height: 40px; margin-top: 14px; border-radius: 8px; background: var(--well); }
 .sound-play { border: 0; background: #ffffff10; color: #d1e1c1; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; }
 .sound-play:hover, .sound-play.on { background: #d3e3bd; color: #1e3030; }
+.sound-play.small { width: 24px; height: 24px; flex: none; }
+.sound-versions { list-style: none; margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid #ffffff12; display: grid; gap: 8px; }
+.sound-versions li { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.sound-version-text { display: grid; min-width: 0; }
+.sound-version-name { font-size: 12px; color: #dfe9dc; overflow-wrap: anywhere; }
+.sound-version-name b { color: var(--c); font-weight: 700; margin-right: 3px; }
+.sound-version-note { font-size: 10px; color: var(--muted); }
+.version-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.version-pills .toggle { padding: 7px 10px; }
+.version-note { font-size: 11px; color: var(--muted); margin: -4px 0 0; }
 
 /* ---------- mixes ---------- */
 .library { display: grid; gap: 18px; max-width: 900px; }
@@ -472,3 +482,20 @@ input[type='range'] { accent-color: var(--c, #cde1ad); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+/* Auto-Blend */
+.blend-toggle { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--well); border: 1px solid #ffffff14; }
+.blend-toggle button { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+.blend-toggle button.on { background: #d2e2b8; color: #243429; }
+.blend-toggle button:focus-visible { outline: 2px solid #d2e2b8; outline-offset: 2px; }
+.blend-help { font-size: 11px; color: var(--muted); min-width: 0; flex: 1 1 180px; }
+.blend-hints { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.blend-hints li { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px; border-radius: 9px; background: #ffffff0a; border: 1px solid #ffffff14; font-size: 12px; color: #dfe9dc; }
+.blend-hints li span { flex: 1; min-width: 0; }
+
+/* Custom Mix length */
+.custom-length { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.custom-length .text-input { width: 76px; padding: 7px 9px; }
+.custom-length .text-input[aria-invalid="true"] { border-color: var(--danger); }
+.custom-length-help { font-size: 11px; color: var(--muted); }
+.custom-length-help.invalid { color: var(--danger); }

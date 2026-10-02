@@ -1,3 +1,4 @@
+import { BLEND_VERSION } from '../../core/blend-version';
 import { SOUNDS } from '../../core/sounds';
 import type { MixComponent, MixDraft, SoundId } from '../../core/types';
 import { MAX_COMPONENTS, MIN_SPAN_SEC } from '../../core/validate';
@@ -31,16 +32,17 @@ export function withRows(components: MixComponent[]): MixComponent[] {
 
 function initial(mode: EditorMode, sourceId?: string): MixDraft {
   const source = sourceId ? findMix(sourceId) : null;
-  if (source && mode === 'edit') return { name: source.name, lengthSec: source.lengthSec, repeat: source.repeat, components: source.components, parentMixId: source.parentMixId ?? null };
+  // An edit keeps the Mix's own Auto-Blend setting and version; a remix inherits it; a new Mix starts with it on.
+  if (source && mode === 'edit') return { name: source.name, lengthSec: source.lengthSec, repeat: source.repeat, components: source.components, parentMixId: source.parentMixId ?? null, ...(source.blend ? { blend: source.blend } : {}) };
   if (source && mode === 'remix') {
-    return { name: '', lengthSec: source.lengthSec, repeat: source.repeat, components: source.components.map(c => ({ ...c, id: cid() })), parentMixId: source.id };
+    return { name: '', lengthSec: source.lengthSec, repeat: source.repeat, components: source.components.map(c => ({ ...c, id: cid() })), parentMixId: source.id, ...(source.blend ? { blend: source.blend } : {}) };
   }
   if (mode === 'new' && handoff) {
     const shared = handoff;
     handoff = null;
     return { ...shared, name: '', components: shared.components.map(c => ({ ...c, id: cid() })), parentMixId: null };
   }
-  return { name: '', lengthSec: 30 * 60, repeat: 'loop', components: [], parentMixId: null };
+  return { name: '', lengthSec: 30 * 60, repeat: 'loop', components: [], parentMixId: null, blend: { on: true, v: BLEND_VERSION } };
 }
 
 export function initialDraft(mode: EditorMode, sourceId?: string): MixDraft {

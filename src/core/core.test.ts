@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CURATED_MIXES } from './catalog.js';
 import { canonicalize } from './fingerprint.js';
@@ -111,6 +112,16 @@ describe('validation', () => {
     for (const m of CURATED_MIXES) expect(() => sanitizeDraft(m)).not.toThrow();
   });
 
+  it('accepts any whole-minute length from 5 to 120, and nothing else', () => {
+    for (const min of [5, 7, 37, 60, 120]) expect(sanitizeDraft({ ...mix([c('brown', 0, min, 0.5)], min) }).lengthSec).toBe(min * 60);
+    for (const sec of [4 * 60, 121 * 60, 7.5 * 60, 0, -60]) expect(() => sanitizeDraft({ ...mix([c('brown', 0, 4, 0.5)]), lengthSec: sec })).toThrow(MixValidationError);
+  });
+
+  it('keeps a custom length through a share link', () => {
+    const back = decodeMix(encodeMix({ ...mix([c('brown', 0, 37, 0.5)], 37), name: 'ODD' }))!;
+    expect(back.lengthSec).toBe(37 * 60);
+  });
+
   it('rejects Mixes with nothing audible or bad timing', () => {
     expect(() => sanitizeDraft(mix([c('quiet', 0, 5, 1)]))).toThrow(MixValidationError);
     expect(() => sanitizeDraft(mix([c('brown', 0, 45, 0.5)]))).toThrow(MixValidationError);
@@ -145,15 +156,58 @@ describe('share codes', () => {
 describe('recorded sounds', () => {
   const recorded = Object.values(SOUNDS).filter(s => s.sample);
 
-  it('covers fire and stream, each with a usable loop and a credit', () => {
-    expect(recorded.map(s => s.id).sort()).toEqual(['fire', 'stream']);
-    for (const s of recorded) {
-      const { file, loopStart, loopEnd, credit } = s.sample!;
-      expect(file).toMatch(/^sounds\/[a-z]+\.mp3$/);
+  it('plays every nature sound from a recording, in every version, each with a usable loop and a credit', () => {
+    const nature = Object.values(SOUNDS).filter(s => s.family === 'Nature').map(s => s.id).sort();
+    expect(recorded.map(s => s.id).sort()).toEqual(nature);
+    const loops = [...recorded.map(s => s.sample!), ...recorded.flatMap(s => s.variants ?? []).map(v => v.sample)];
+    expect(loops.every(Boolean)).toBe(true);
+    for (const { file, loopStart, loopEnd, credit } of loops as NonNullable<(typeof loops)[number]>[]) {
+      expect(file).toMatch(/^sounds\/[a-z]+(-[ab])?\.mp3$/);
+      expect(existsSync(new URL(`../../public/${file}`, import.meta.url))).toBe(true);
       // The wrap-around margin before loopStart is what keeps the seam clean.
       expect(loopStart).toBeGreaterThanOrEqual(0.25);
       expect(loopEnd - loopStart).toBeGreaterThan(30);
-      expect(credit.length).toBeGreaterThan(5);
+      expect(credit).toMatch(/Public Domain Mark|CC0/);
     }
+  });
+});
+
+describe('sound versions', () => {
+  const withVariants = Object.values(SOUNDS).filter(s => s.variants);
+
+  it('offers simpler versions for ten sounds, each calibrated and described', () => {
+    expect(withVariants.map(s => s.id).sort()).toEqual(['fan', 'fire', 'focus', 'night', 'ocean', 'rain', 'stream', 'tone432', 'tone528', 'wind']);
+    for (const s of withVariants) {
+      // The Hz tones keep their exact pitches, so they offer only A; everything else offers A and B.
+      expect(s.variants!.map(v => v.id)).toEqual(s.id === 'tone432' || s.id === 'tone528' ? ['a'] : ['a', 'b']);
+      if (s.freq) for (const v of s.variants!) expect(v.synth?.tone).toBe(s.freq);
+      for (const v of s.variants!) {
+        expect(v.gain).toBeGreaterThan(0);
+        // Each version is either generated or recorded, never both or neither.
+        expect(!!v.synth !== !!v.sample).toBe(true);
+        expect(v.label.length).toBeGreaterThan(2);
+      }
+    }
+  });
+
+  it('keeps a valid version through saving and drops one a sound does not offer', () => {
+    const clean = sanitizeDraft(mix([{ ...c('fire', 0, 30, 0.5), variant: 'a' }, { ...c('brown', 0, 30, 0.5), variant: 'b' }, { ...c('rain', 0, 30, 0.5), variant: 'z' as never }]));
+    expect(clean.components.map(x => x.variant)).toEqual(['a', undefined, undefined]);
+  });
+
+  it('carries versions through share links, and leaves originals exactly as before', () => {
+    const original = { ...mix([{ ...c('ocean', 0, 30, 0.6), variant: 'b' }, c('brown', 0, 30, 0.7)]), name: 'SHORE' };
+    const back = decodeMix(encodeMix(original))!;
+    expect(back.components.map(x => x.variant)).toEqual(['b', undefined]);
+    // A Mix without versions encodes exactly as it did before versions existed.
+    const plain = { ...mix([c('brown', 0, 30, 0.7)]), name: 'PLAIN' };
+    const packed = JSON.parse(atob(encodeMix(plain).replace(/-/g, '+').replace(/_/g, '/')));
+    expect(packed[4][0]).toHaveLength(6);
+  });
+
+  it('treats a version as its own discovery, without changing the originals', () => {
+    const a = canonicalize(mix([c('fire', 0, 30, 0.5)]));
+    expect(a).toContain('fire@full');
+    expect(canonicalize(mix([{ ...c('fire', 0, 30, 0.5), variant: 'a' }]))).not.toBe(a);
   });
 });

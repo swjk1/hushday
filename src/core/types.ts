@@ -21,7 +21,12 @@ export interface MixComponent {
   entry: Entry;
   /** Track row in the block editor (0 at the top). Purely visual; the sound is the same on any row. */
   row?: number;
+  /** Which version of the sound plays. Absent means the original. */
+  variant?: VariantId;
 }
+
+/** Simpler alternative versions offered for some sounds, alongside the original. */
+export type VariantId = 'a' | 'b';
 
 /** The audio package itself. Array order of components is the visual layer order. */
 export interface MixDraft {
@@ -30,6 +35,8 @@ export interface MixDraft {
   repeat: RepeatMode;
   components: MixComponent[];
   parentMixId?: string | null;
+  /** Auto-Blend: on or off, and the rule version the Mix was saved with. Absent means off (the original). */
+  blend?: { on: boolean; v: number };
 }
 
 export interface Discovery {

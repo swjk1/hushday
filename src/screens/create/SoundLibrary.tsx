@@ -1,6 +1,6 @@
 import { Glyph, Icon } from '../../components/bits';
 import { SoundSwatch } from '../../components/SoundSwatch';
-import { SOUNDS, SOUND_ORDER } from '../../core/sounds';
+import { SOUNDS, SOUND_ORDER, variantLabel, variantOf } from '../../core/sounds';
 import { spanLabel } from '../../core/format';
 import type { MixComponent, SoundId } from '../../core/types';
 import { clickWasDrag, pressToDrag, useDrag, type DragState } from './drag';
@@ -75,6 +75,10 @@ export function BlockInspector({ blocks, lengthSec, onChange, onDuplicate, onDel
   const start = Math.min(...blocks.map(b => b.start));
   const end = Math.max(...blocks.map(b => b.end));
   const title = many ? blocks.map(b => SOUNDS[b.sound].label).join(' + ') : def.name;
+  // Versions are offered when every selected block is the same sound and that sound has simpler versions.
+  const variants = blocks.every(b => b.sound === first.sound) ? def.variants : undefined;
+  const version = blocks.every(b => (b.variant ?? '') === (first.variant ?? '')) ? first.variant ?? '' : null;
+  const chosen = version ? variantOf(first.sound, version) : null;
   return (
     <div className={`inspector ${many ? 'braid' : ''}`} style={{ ['--c' as string]: def.color, ['--thumb' as string]: def.color }}>
       <div className="inspector-head">
@@ -82,6 +86,7 @@ export function BlockInspector({ blocks, lengthSec, onChange, onDuplicate, onDel
           {blocks.map(b => <span key={b.id} className="inspector-swatch"><SoundSwatch sound={b.sound} level={b.level} /></span>)}
         </span>
         <strong>{title}</strong>
+        {!many && first.variant && <span className="tiny-label">{variantLabel(first.sound, first.variant)}</span>}
         {many && <span className="tiny-label">{blocks.length} blocks</span>}
         <span className="mono muted">{spanLabel(start, end, lengthSec)} · track {(first.row ?? 0) + 1}</span>
         <button className="icon-btn" onClick={onClose} aria-label="Close block settings"><Icon name="close" size={16} /></button>
@@ -98,6 +103,24 @@ export function BlockInspector({ blocks, lengthSec, onChange, onDuplicate, onDel
         />
         <span className="mono muted inspector-pct">{Math.round(level * 100)}</span>
       </label>
+      {variants && (
+        <>
+          <div className="version-pills" role="radiogroup" aria-label={`${def.name} version`}>
+            {[{ id: '' as const, label: 'Original' }, ...variants].map(v => (
+              <button
+                key={v.id || 'original'}
+                role="radio"
+                aria-checked={version === v.id}
+                className={`toggle ${version === v.id ? 'on' : ''}`}
+                onClick={() => onChange(() => ({ variant: v.id || undefined }))}
+              >
+                {v.id ? `${v.id.toUpperCase()} · ${v.label}` : 'Original'}
+              </button>
+            ))}
+          </div>
+          <p className="version-note">{chosen ? chosen.blurb : version === '' ? def.blurb : 'These blocks use different versions.'}</p>
+        </>
+      )}
       <div className="inspector-actions">
         {!quiet && (
           <button className={`toggle ${slow ? 'on' : ''}`} aria-pressed={slow} onClick={() => onChange(() => ({ entry: slow ? 'soft' : 'slow' }))}>

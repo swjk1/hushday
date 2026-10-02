@@ -88,6 +88,7 @@ async function pushMix(mix: Mix): Promise<Discovery | null> {
 
 const toDraft = (mix: MixDraft): MixDraft => ({
   name: mix.name, lengthSec: mix.lengthSec, repeat: mix.repeat, components: mix.components, parentMixId: mix.parentMixId ?? null,
+  ...(mix.blend ? { blend: mix.blend } : {}),
 });
 
 function replaceMix(mix: Mix) {

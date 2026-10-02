@@ -9,7 +9,7 @@ export type EventName =
   | 'app_opened' | 'mix_viewed' | 'mix_played' | 'zone_started' | 'zone_duration_selected' | 'zone_completed'
   | 'zone_paused' | 'zone_resumed' | 'zone_ended_early' | 'short_experience_played' | 'short_experience_completed'
   | 'mix_reused' | 'mix_editor_opened' | 'mix_previewed' | 'sound_component_added' | 'sound_component_removed' | 'sound_auditioned' | 'mix_shared'
-  | 'discovery_revealed';
+  | 'discovery_revealed' | 'blend_toggled';
 
 interface QueuedEvent { name: EventName; props: Record<string, unknown>; ts: string }
 

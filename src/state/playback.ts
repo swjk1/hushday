@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { engine, type SessionInfo } from '../audio/engine';
 import { SOUNDS } from '../core/sounds';
-import type { MixComponent, MixDraft, SoundId } from '../core/types';
+import type { MixComponent, MixDraft, SoundId, VariantId } from '../core/types';
 import { findMix, findShort, recordZone } from './actions';
 import { track } from './events';
 import { getState, readStorage, setState, writeStorage } from './store';
@@ -85,8 +85,11 @@ export function preview(mix: MixDraft, offset = 0) {
 
 const AUDITION_SEC = 14;
 
-/** A short taste of one sound. A quiet section is heard as brown noise dropping away and returning. */
-export function audition(sound: SoundId) {
+/**
+ * A short taste of one sound, in its original or a simpler version. A quiet section is heard as
+ * brown noise dropping away and returning.
+ */
+export function audition(sound: SoundId, variant?: VariantId) {
   const def = SOUNDS[sound];
   const L = AUDITION_SEC;
   const components: MixComponent[] = def.category === 'quiet'
@@ -94,11 +97,11 @@ export function audition(sound: SoundId) {
         { id: 'bed', sound: 'brown', start: 0, end: L, level: 0.7, entry: 'soft' },
         { id: 'gap', sound, start: 4, end: 10, level: 0.9, entry: 'soft' },
       ]
-    : [{ id: 'one', sound, start: 0, end: L, level: def.defaultLevel, entry: 'soft' }];
-  track('sound_auditioned', { sound });
+    : [{ id: 'one', sound, start: 0, end: L, level: def.defaultLevel, entry: 'soft', ...(variant ? { variant } : {}) }];
+  track('sound_auditioned', { sound, variant: variant ?? null });
   closeCurrent();
   engine.setVolume(getState().settings.volume);
-  void engine.start({ kind: 'preview', sourceId: `audition:${sound}`, mix: { name: '', lengthSec: L, repeat: 'sustain', components }, totalSec: L }, 0);
+  void engine.start({ kind: 'preview', sourceId: `audition:${sound}${variant ? `:${variant}` : ''}`, mix: { name: '', lengthSec: L, repeat: 'sustain', components }, totalSec: L }, 0);
 }
 
 export function pause() {

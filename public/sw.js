@@ -1,6 +1,6 @@
 // Offline shell: network-first for navigations, stale-while-revalidate for static assets.
 // The API is never cached.
-const CACHE = 'hushday-v3';
+const CACHE = 'hushday-v4';
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(['/', '/hush-gen.worklet.js', '/icon.svg'])));

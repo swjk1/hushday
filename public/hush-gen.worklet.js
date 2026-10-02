@@ -43,6 +43,107 @@ function red(c, w) {
   return c.lp2 * 1.4;
 }
 
+// ---- Simple versions -------------------------------------------------------------------------
+// One main texture per sound: fixed sine pitches, a filtered noise wash with an optional slow
+// swell, and one rounded event repeating on a fixed period. Built to the "Sound studies" recipe.
+
+// Web Audio's lowpass/highpass Q is in dB; the studies used 0.5, which is a linear Q of about 1.06.
+const SIMPLE_Q = Math.pow(10, 0.5 / 20);
+
+function biquad(kind, f) {
+  const w = (TAU * Math.min(f, sampleRate * 0.45)) / sampleRate;
+  const cos = Math.cos(w);
+  const alpha = Math.sin(w) / (2 * SIMPLE_Q);
+  const a0 = 1 + alpha;
+  const lp = kind === 'lp';
+  const b0 = (lp ? (1 - cos) / 2 : (1 + cos) / 2) / a0;
+  const b1 = (lp ? 1 - cos : -(1 + cos)) / a0;
+  return { b0, b1, b2: b0, a1: (-2 * cos) / a0, a2: (1 - alpha) / a0, x1: 0, x2: 0, y1: 0, y2: 0 };
+}
+
+function runBiquad(f, x) {
+  const y = f.b0 * x + f.b1 * f.x1 + f.b2 * f.x2 - f.a1 * f.y1 - f.a2 * f.y2;
+  f.x2 = f.x1; f.x1 = x; f.y2 = f.y1; f.y1 = y;
+  return y;
+}
+
+function makeSimple(p, rnd) {
+  const s = {
+    p,
+    t: 0,
+    tonePhase: rnd(),
+    secondPhase: rnd(),
+    toneGain: p.second ? 0.045 : 0.065 * (p.toneAmp == null ? 1 : p.toneAmp),
+    noiseGain: (p.amp == null ? 1 : p.amp) * 0.42,
+    filters: [0, 1].map(() => [p.high ? biquad('hp', p.high) : null, p.low ? biquad('lp', p.low) : null].filter(Boolean)),
+    periodN: p.period ? Math.round(p.period * sampleRate) : 0,
+    lenN: p.length ? Math.round(p.length * sampleRate) : 0,
+    startN: Math.round(0.3 * sampleRate),
+    rustleK: 1 - Math.exp((-TAU * 900) / sampleRate),
+    rustleLp: 0,
+    rnd,
+  };
+  // Each block enters its event cycle at its own seeded point, so stacked event sounds don't fire together.
+  s.pos = s.periodN ? Math.floor(rnd() * s.periodN) : 0;
+  return s;
+}
+
+function renderSimple(s, ch, left, right, n) {
+  const p = s.p;
+  const dt = 1 / sampleRate;
+  for (let i = 0; i < n; i++) {
+    let mono = 0;
+    if (p.tone) {
+      s.tonePhase += p.tone * dt;
+      if (s.tonePhase >= 1) s.tonePhase -= 1;
+      mono += Math.sin(TAU * s.tonePhase) * s.toneGain;
+      if (p.second) {
+        s.secondPhase += p.second * dt;
+        if (s.secondPhase >= 1) s.secondPhase -= 1;
+        mono += Math.sin(TAU * s.secondPhase) * 0.035;
+      }
+    }
+    if (s.periodN && s.lenN) {
+      const k = s.pos - s.startN;
+      if (k >= 0 && k < s.lenN) {
+        const x = k / s.lenN;
+        const env = Math.pow(Math.sin(Math.PI * x), 2) * Math.exp(-2 * x);
+        if (p.rustle) {
+          s.rustleLp += s.rustleK * (s.rnd() * 2 - 1 - s.rustleLp);
+          mono += s.rustleLp * env * 0.15;
+        } else {
+          mono += Math.sin((TAU * p.event * k) / sampleRate) * env * p.eventAmp;
+        }
+      }
+      s.pos = (s.pos + 1) % s.periodN;
+    }
+    let l = mono;
+    let r = mono;
+    if (p.noise) {
+      let nl;
+      let nr;
+      if (p.noise === 'brown') {
+        nl = brown(ch[0], white(ch[0]));
+        nr = brown(ch[1], white(ch[1]));
+        const mid = (nl + nr) * 0.5;
+        nl = mid * 0.6 + nl * 0.4;
+        nr = mid * 0.6 + nr * 0.4;
+      } else {
+        nl = pink(ch[0], white(ch[0]));
+        nr = pink(ch[1], white(ch[1]));
+      }
+      for (const f of s.filters[0]) nl = runBiquad(f, nl);
+      for (const f of s.filters[1]) nr = runBiquad(f, nr);
+      const g = s.noiseGain * (p.swell ? 1 + (p.depth || 0) * Math.sin((TAU * s.t) / p.swell) : 1);
+      l += nl * g;
+      r += nr * g;
+    }
+    left[i] = l;
+    if (right !== left) right[i] = r;
+    s.t += dt;
+  }
+}
+
 class HushGenerator extends AudioWorkletProcessor {
   constructor(options) {
     super();
@@ -58,35 +159,8 @@ class HushGenerator extends AudioWorkletProcessor {
     this.port.onmessage = event => { if (event.data === 'stop') this.alive = false; };
     this.dt = 1 / sampleRate;
     this.t = 0;
-    // Ocean swell state
-    this.swellPhase = this.shared();
-    this.swellPeriod = 8 + this.shared() * 5;
-    // Wind: a wandering filter centre and a gust envelope, both slow random walks.
-    this.gust = 0.5;
-    this.gustTarget = 0.6;
-    this.centre = 450;
-    this.centreTarget = 450;
-    // Rain intensity drift
-    this.rainDrift = 0.5;
-    this.rainTarget = 0.5;
-    // Night: three crickets at different pitches, rates and positions, each pausing now and then.
-    this.crickets = [
-      { f: 4100, rate: 2.1, trill: 34, len: 0.42, pan: 0.25, phase: this.shared(), on: true },
-      { f: 4650, rate: 1.7, trill: 28, len: 0.5, pan: 0.78, phase: this.shared(), on: true },
-      { f: 3750, rate: 2.7, trill: 41, len: 0.3, pan: 0.5, phase: this.shared(), on: false },
-    ];
-  }
-
-  swell() {
-    this.swellPhase += this.dt / this.swellPeriod;
-    if (this.swellPhase >= 1) {
-      this.swellPhase -= 1;
-      this.swellPeriod = 8 + this.shared() * 5;
-    }
-    const p = this.swellPhase;
-    // Quick rise, long fall.
-    const s = p < 0.35 ? Math.sin((Math.PI / 2) * (p / 0.35)) : Math.cos((Math.PI / 2) * ((p - 0.35) / 0.65));
-    return s * s;
+    // A simpler alternative version of a sound, described by parameters rather than a type.
+    this.simple = o.synth ? makeSimple(o.synth, this.shared) : null;
   }
 
   process(_inputs, outputs) {
@@ -95,6 +169,10 @@ class HushGenerator extends AudioWorkletProcessor {
     const right = out[1] || out[0];
     const n = left.length;
     const type = this.type;
+    if (this.simple) {
+      renderSimple(this.simple, this.ch, left, right, n);
+      return this.alive;
+    }
 
     for (let i = 0; i < n; i++) {
       let l = 0;
@@ -122,64 +200,6 @@ class HushGenerator extends AudioWorkletProcessor {
         this.phase += this.freq * this.dt;
         if (this.phase >= 1) this.phase -= 1;
         l = r = Math.sin(TAU * this.phase) * 0.5;
-      } else if (type === 'wind') {
-        if (i === 0) {
-          if (this.shared() < 0.006) this.gustTarget = 0.4 + this.shared() * 0.6;
-          if (this.shared() < 0.004) this.centreTarget = 240 + this.shared() * 700;
-          this.gust += (this.gustTarget - this.gust) * 0.004;
-          this.centre += (this.centreTarget - this.centre) * 0.002;
-        }
-        for (let k = 0; k < 2; k++) {
-          const c = this.ch[k];
-          const x = pink(c, white(c));
-          // State-variable band-pass; the two channels sit slightly apart for width.
-          const f = 2 * Math.sin((Math.PI * this.centre * (k ? 1.08 : 0.94)) / sampleRate);
-          c.low += f * c.band;
-          const high = x - c.low - 0.55 * c.band;
-          c.band += f * high;
-          // Gusts swing the level by about half rather than fivefold, so the bed stays steady.
-          const v = (c.band * 1.6 + c.low * 0.35) * (0.5 + 0.5 * this.gust);
-          if (k === 0) l = v; else r = v;
-        }
-      } else if (type === 'rain') {
-        if (i === 0) {
-          if (this.shared() < 0.004) this.rainTarget = 0.3 + this.shared() * 0.7;
-          this.rainDrift += (this.rainTarget - this.rainDrift) * 0.01;
-        }
-        const density = (40 + 90 * this.rainDrift) * this.dt;
-        for (let k = 0; k < 2; k++) {
-          const c = this.ch[k];
-          const w = white(c);
-          const p = pink(c, w);
-          c.lp += (p - c.lp) * 0.08;
-          const hiss = (p - c.lp) * 1.1;
-          if (c.rnd() < density) {
-            c.drop = 0.25 + c.rnd() * 0.75;
-            c.decay = 0.991 + c.rnd() * 0.007;
-          }
-          c.drop *= c.decay;
-          const w2 = white(c);
-          c.dropLp += (w2 - c.dropLp) * 0.35;
-          const drop = c.drop * (w2 - c.dropLp) * 0.55;
-          const body = brown(c, w) * 0.18;
-          const v = hiss * (0.55 + 0.25 * this.rainDrift) + drop + body;
-          if (k === 0) l = v; else r = v;
-        }
-      } else if (type === 'ocean') {
-        const s = this.swell();
-        // Waves swing between about half and full rather than near-silence and full.
-        const env = 0.52 + 0.48 * s;
-        const k = 0.03 + 0.08 * s;
-        for (let j = 0; j < 2; j++) {
-          const c = this.ch[j];
-          const w = white(c);
-          const noise = brown(c, w) * 0.75 + pink(c, w) * 0.6;
-          c.lp += (noise - c.lp) * k;
-          c.lp2 += (c.lp - c.lp2) * 0.5;
-          const foam = (noise - c.lp) * s * s * s * 0.16;
-          const v = (c.lp2 * 1.5 + foam) * env;
-          if (j === 0) l = v; else r = v;
-        }
       } else if (type === 'fan') {
         const t = this.t;
         // Motor hum with a couple of harmonics and a faint blade-pass wobble, the same in both ears.
@@ -191,28 +211,6 @@ class HushGenerator extends AudioWorkletProcessor {
           c.lp += (pink(c, white(c)) - c.lp) * 0.11;
           const v = hum * 0.22 + c.lp * 1.5;
           if (k === 0) l = v; else r = v;
-        }
-      } else if (type === 'night') {
-        const t = this.t;
-        if (i === 0) {
-          for (const cr of this.crickets) if (this.shared() < 0.0025) cr.on = !cr.on;
-        }
-        // A faint, dark bed so the chirps sit in something.
-        for (let k = 0; k < 2; k++) {
-          const c = this.ch[k];
-          c.lp += (pink(c, white(c)) - c.lp) * 0.04;
-          if (k === 0) l = c.lp * 0.9; else r = c.lp * 0.9;
-        }
-        for (const cr of this.crickets) {
-          if (!cr.on) continue;
-          const cycle = 1 / cr.rate;
-          const tt = ((t * cr.rate + cr.phase) % 1) * cycle;
-          if (tt >= cr.len) continue;
-          // Each chirp is a short tone burst, itself pulsing (the trill), rounded at both ends.
-          const env = Math.sin((Math.PI * tt) / cr.len) * (0.5 + 0.5 * Math.sin(TAU * cr.trill * tt));
-          const v = env * Math.sin(TAU * cr.f * t) * 0.09;
-          l += v * (1 - cr.pan);
-          r += v * cr.pan;
         }
       } else if (type === 'focus') {
         const t = this.t;

@@ -68,6 +68,7 @@ export function toMix(row: Row): Mix {
     id: row.id, name: row.name, lengthSec: row.length_sec, repeat: row.repeat_mode, components: row.components,
     parentMixId: row.parent_mix_id, creatorId: row.creator_id, curated: false, createdAt: new Date(row.created_at).toISOString(),
     discovery, sync: 'synced',
+    ...(row.blend ? { blend: row.blend } : {}),
   };
 }
 

@@ -43,7 +43,9 @@ const placementRank = (p: string) => (p === 'full' ? 0 : 1 + PHASES.indexOf(p.sp
 export function componentToken(c: MixComponent, lengthSec: number) {
   const where = placement(c, lengthSec);
   const slow = c.entry === 'slow' ? '~' : '';
-  return { rank: placementRank(where), token: `${c.sound}@${where}:${levelBucket(c.level)}${slow}` };
+  // A variant is a different sound to discover; originals keep exactly the tokens they always had.
+  const sound = c.variant ? `${c.sound}.${c.variant}` : c.sound;
+  return { rank: placementRank(where), token: `${sound}@${where}:${levelBucket(c.level)}${slow}` };
 }
 
 /** Canonical, order-independent description of a Mix. Equal strings mean the same discovery. */

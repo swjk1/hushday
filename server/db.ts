@@ -42,6 +42,8 @@ const SCHEMA = [
     deleted_at timestamptz
   )`,
   `create index if not exists mixes_creator_idx on mixes (creator_id, created_at desc) where deleted_at is null`,
+  // Auto-Blend setting ({ on, v }); null for Mixes saved before it existed, which play as the original.
+  `alter table mixes add column if not exists blend jsonb`,
   `create index if not exists mixes_family_idx on mixes (family_id)`,
   `create table if not exists discoveries (
     family_id text not null references discovery_families(id),

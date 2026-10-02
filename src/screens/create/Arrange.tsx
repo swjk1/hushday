@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { engine } from '../../audio/engine';
 import { RowCanvas } from '../../components/RowCanvas';
 import { SOUNDS } from '../../core/sounds';
@@ -89,6 +89,40 @@ export function Arrange({ draft, selected, previewing, onSelect, onDrop, onResiz
   };
   const combined = useMemo(() => stacks(draft.components, L), [draft.components, L]);
 
+  // Block labels: each starts at its own block when there is room, otherwise just after the label before
+  // it on the same row, always with the same gap. Widths are measured, so long and short names space evenly.
+  const chipRefs = useRef(new Map<string, HTMLButtonElement>());
+  const [chipWidths, setChipWidths] = useState<Record<string, number>>({});
+  const [gridWidth, setGridWidth] = useState(0);
+  useLayoutEffect(() => {
+    const next: Record<string, number> = {};
+    chipRefs.current.forEach((el, id) => { next[id] = el.offsetWidth; });
+    setChipWidths(prev => (Object.keys(next).length === Object.keys(prev).length && Object.entries(next).every(([k, v]) => prev[k] === v) ? prev : next));
+  });
+  useEffect(() => {
+    const el = grid.current;
+    if (!el) return;
+    const observe = new ResizeObserver(() => setGridWidth(el.clientWidth));
+    observe.observe(el);
+    setGridWidth(el.clientWidth);
+    return () => observe.disconnect();
+  }, []);
+  const chipLeft = useMemo(() => {
+    const GAP = 6;
+    const left: Record<string, number> = {};
+    const rowsOf = new Map<number, MixComponent[]>();
+    for (const c of draft.components) rowsOf.set(c.row ?? 0, [...(rowsOf.get(c.row ?? 0) ?? []), c]);
+    for (const list of rowsOf.values()) {
+      let end = -Infinity;
+      for (const c of [...list].sort((a, b) => a.start - b.start || (a.id < b.id ? -1 : 1))) {
+        const x = Math.max((c.start / L) * gridWidth + GAP, end + GAP);
+        left[c.id] = x;
+        end = x + (chipWidths[c.id] ?? 64);
+      }
+    }
+    return left;
+  }, [draft.components, L, gridWidth, chipWidths]);
+
   let hint = '';
   if (drag) {
     const name = drag.source.kind === 'group' ? drag.source.sounds.map(s => SOUNDS[s].label).join(' + ') : SOUNDS[drag.source.sound].label;
@@ -170,13 +204,16 @@ export function Arrange({ draft, selected, previewing, onSelect, onDrop, onResiz
         {/* One label per block, above every frame, so each sound in a braid can be picked or pulled out. */}
         {draft.components.map(c => {
           const row = c.row ?? 0;
-          const before = draft.components.filter(o => o.id !== c.id && (o.row ?? 0) === row && o.start <= c.start && o.end > c.start && (o.start < c.start || o.id < c.id));
           const def = SOUNDS[c.sound];
           return (
             <button
               key={`chip-${c.id}`}
+              ref={el => {
+                if (el) chipRefs.current.set(c.id, el);
+                else chipRefs.current.delete(c.id);
+              }}
               className={`block-chip ${selected.includes(c.id) ? 'on' : ''} ${dragging.has(c.id) ? 'lifting' : ''}`}
-              style={{ left: `calc(${(c.start / L) * 100}% + ${6 + before.length * 64}px)`, top: `calc(${row} * var(--row) + 8px)`, ['--c' as string]: def.color }}
+              style={{ left: `${chipLeft[c.id] ?? 6}px`, top: `calc(${row} * var(--row) + 8px)`, ['--c' as string]: def.color }}
               title={groupOf(draft, c).length > 1 ? `Drag to pull ${def.label} out` : undefined}
               onPointerDown={e => pressToDrag(e, { kind: 'block', id: c.id, sound: c.sound, grab: timeAt(e.clientX) - c.start, span: c.end - c.start }, state =>
                 onDrop(state, state.at ? planDrop(draft, state.source, state.at) : null),
@@ -188,7 +225,7 @@ export function Arrange({ draft, selected, previewing, onSelect, onDrop, onResiz
               aria-label={`Select ${def.name}`}
             >
               <span className="dot" style={{ background: def.color }} />
-              {def.label}
+              {def.label}{c.variant ? ` ${c.variant.toUpperCase()}` : ''}
             </button>
           );
         })}

@@ -1,7 +1,12 @@
 import { LEGACY_SOUNDS, SOUNDS, isSoundId } from './sounds.js';
 import type { MixComponent, MixDraft } from './types.js';
 
+/** The quick choices in the editor. */
 export const LENGTH_OPTIONS_MIN = [10, 20, 30, 45, 60];
+/** A custom length is any whole number of minutes in this range: long enough for a few one-minute blocks,
+ * short enough to arrange comfortably on the timeline. */
+export const MIN_LENGTH_MIN = 5;
+export const MAX_LENGTH_MIN = 120;
 export const MAX_COMPONENTS = 8;
 export const MIN_SPAN_SEC = 60;
 export const MAX_NAME = 40;
@@ -22,7 +27,8 @@ export function sanitizeDraft(input: unknown): MixDraft {
   if (name.length > MAX_NAME) fail(`Keep the name under ${MAX_NAME} characters`);
 
   const lengthSec = Number(raw.lengthSec);
-  if (!LENGTH_OPTIONS_MIN.includes(lengthSec / 60)) fail('Pick a Mix length');
+  const minutes = lengthSec / 60;
+  if (!Number.isInteger(minutes) || minutes < MIN_LENGTH_MIN || minutes > MAX_LENGTH_MIN) fail(`Pick a length from ${MIN_LENGTH_MIN} to ${MAX_LENGTH_MIN} minutes`);
 
   const repeat = raw.repeat === 'sustain' ? 'sustain' : 'loop';
 
@@ -45,11 +51,17 @@ export function sanitizeDraft(input: unknown): MixDraft {
     if (start < 0 || end > lengthSec || end - start < MIN_SPAN_SEC) fail('Each sound needs at least a minute inside the Mix');
     const level = Math.round(Math.min(1, Math.max(0, Number(c.level) || 0)) * 100) / 100;
     const row = Number.isInteger(c.row) ? Math.min(MAX_COMPONENTS - 1, Math.max(0, c.row as number)) : index;
-    return { id, sound: sound as MixComponent['sound'], start, end, level, entry: c.entry === 'slow' ? 'slow' : 'soft', row };
+    // Keep a variant only if this sound actually offers it; anything else plays the original.
+    const variant = SOUNDS[sound as MixComponent['sound']].variants?.find(v => v.id === c.variant)?.id;
+    return { id, sound: sound as MixComponent['sound'], start, end, level, entry: c.entry === 'slow' ? 'slow' : 'soft', row, ...(variant ? { variant } : {}) };
   });
 
   if (!components.some(c => SOUNDS[c.sound].category !== 'quiet' && c.level >= 0.05)) fail('Add a sound you can hear');
 
   const parentMixId = typeof raw.parentMixId === 'string' && raw.parentMixId.length <= 64 ? raw.parentMixId : null;
-  return { name, lengthSec, repeat, components, parentMixId };
+  // Auto-Blend: kept only as { on, v } with a sensible rule version; anything else plays as the original.
+  const b = raw.blend as { on?: unknown; v?: unknown } | undefined;
+  const v = Number(b?.v);
+  const blend = b && typeof b === 'object' && Number.isInteger(v) && v >= 1 && v <= 99 ? { on: b.on === true, v } : undefined;
+  return { name, lengthSec, repeat, components, parentMixId, ...(blend ? { blend } : {}) };
 }

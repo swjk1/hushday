@@ -37,10 +37,10 @@ export const POST = route(async request => {
   const discovery = await discover(sql, user.id, id, canonical, fingerprint);
 
   await sql`
-    insert into mixes (id, creator_id, name, length_sec, repeat_mode, components, fingerprint, fingerprint_version, family_id, discovery_number, parent_mix_id)
+    insert into mixes (id, creator_id, name, length_sec, repeat_mode, components, fingerprint, fingerprint_version, family_id, discovery_number, parent_mix_id, blend)
     values (${id}, ${user.id}, ${draft.name}, ${draft.lengthSec}, ${draft.repeat}, ${JSON.stringify(draft.components)}::jsonb,
-            ${fingerprint}, 1, ${discovery.familyId}, ${discovery.number}, ${draft.parentMixId ?? null})`;
-  await logEvent(sql, user.id, 'mix_created', { mixId: id, fingerprint, parentMixId: draft.parentMixId ?? null, components: draft.components.length });
+            ${fingerprint}, 1, ${discovery.familyId}, ${discovery.number}, ${draft.parentMixId ?? null}, ${draft.blend ? JSON.stringify(draft.blend) : null}::jsonb)`;
+  await logEvent(sql, user.id, 'mix_created', { mixId: id, fingerprint, parentMixId: draft.parentMixId ?? null, components: draft.components.length, blend: draft.blend?.on ?? false, sounds: [...new Set(draft.components.map(c => c.sound))] });
 
   return json({ mix: await loadMix(sql, id), discovery }, 201);
 });
@@ -63,10 +63,10 @@ export const PATCH = route(async request => {
 
   await sql`
     update mixes set name = ${draft.name}, length_sec = ${draft.lengthSec}, repeat_mode = ${draft.repeat},
-      components = ${JSON.stringify(draft.components)}::jsonb, fingerprint = ${fingerprint},
+      components = ${JSON.stringify(draft.components)}::jsonb, fingerprint = ${fingerprint}, blend = ${draft.blend ? JSON.stringify(draft.blend) : null}::jsonb,
       family_id = ${discovery?.familyId ?? null}, discovery_number = ${discovery?.number ?? null}, updated_at = now()
     where id = ${id}`;
-  await logEvent(sql, user.id, 'mix_edited', { mixId: id, structureChanged: changed });
+  await logEvent(sql, user.id, 'mix_edited', { mixId: id, structureChanged: changed, blend: draft.blend?.on ?? false, sounds: [...new Set(draft.components.map(c => c.sound))] });
 
   return json({ mix: await loadMix(sql, id), discovery: changed ? discovery : null });
 });

@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { engine } from '../audio/engine';
 import { Icon } from '../components/bits';
 import { PlayerCard } from '../components/PlayerCard';
+import { blendHints, type BlendHint } from '../core/blend';
+import { BLEND_VERSION } from '../core/blend-version';
 import { SOUNDS } from '../core/sounds';
 import type { MixComponent, MixDraft, SoundId } from '../core/types';
-import { LENGTH_OPTIONS_MIN, MAX_COMPONENTS, MIN_SPAN_SEC, MixValidationError, sanitizeDraft } from '../core/validate';
+import { LENGTH_OPTIONS_MIN, MAX_COMPONENTS, MAX_LENGTH_MIN, MIN_LENGTH_MIN, MIN_SPAN_SEC, MixValidationError, sanitizeDraft } from '../core/validate';
 import { createMix, updateMix } from '../state/actions';
 import { track } from '../state/events';
 import { DRAFT, preview, usePlayback } from '../state/playback';
@@ -30,6 +32,19 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
   const full = draft.components.length >= MAX_COMPONENTS;
   const blocks = selected.map(id => draft.components.find(c => c.id === id)).filter((c): c is MixComponent => !!c);
   const audible = draft.components.some(c => SOUNDS[c.sound].category !== 'quiet');
+  const blendOn = !!draft.blend?.on;
+  // Custom length: shown when chosen, or when the Mix already has a length outside the quick choices.
+  const isCustom = !LENGTH_OPTIONS_MIN.includes(L / 60);
+  const [customOpen, setCustomOpen] = useState(isCustom);
+  const [customText, setCustomText] = useState(String(L / 60));
+  const customValue = Number(customText);
+  const customValid = Number.isInteger(customValue) && customValue >= MIN_LENGTH_MIN && customValue <= MAX_LENGTH_MIN;
+  const applyCustom = () => {
+    if (customValid) { if (customValue * 60 !== L) setLength(customValue); }
+    else setCustomText(String(L / 60));
+  };
+  const [dismissed, setDismissed] = useState<string[]>([]);
+  const hints = useMemo(() => blendHints(draft).filter(h => !dismissed.includes(hintKey(h))).slice(0, 3), [draft, dismissed]);
 
   const counts = useMemo(() => {
     const m = new Map<SoundId, number>();
@@ -181,11 +196,41 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
             <span className="field-label" id="length-label">Length</span>
             <div className="pills" role="radiogroup" aria-labelledby="length-label">
               {LENGTH_OPTIONS_MIN.map(m => (
-                <button key={m} role="radio" aria-checked={L === m * 60} className={`pill ${L === m * 60 ? 'selected' : ''}`} onClick={() => setLength(m)}>
+                <button key={m} role="radio" aria-checked={L === m * 60 && !customOpen} className={`pill ${L === m * 60 && !customOpen ? 'selected' : ''}`} onClick={() => { setCustomOpen(false); setCustomText(String(m)); setLength(m); }}>
                   {m} min
                 </button>
               ))}
+              <button role="radio" aria-checked={customOpen} className={`pill ${customOpen ? 'selected' : ''}`} onClick={() => { setCustomOpen(true); setCustomText(String(L / 60)); }}>
+                Custom
+              </button>
             </div>
+            {customOpen && (
+              <div className="custom-length">
+                <input
+                  id="custom-length"
+                  className="text-input"
+                  type="number"
+                  inputMode="numeric"
+                  min={MIN_LENGTH_MIN}
+                  max={MAX_LENGTH_MIN}
+                  step={1}
+                  value={customText}
+                  aria-label="Custom length in minutes"
+                  aria-invalid={!customValid}
+                  aria-describedby="custom-length-help"
+                  onChange={e => setCustomText(e.target.value)}
+                  onBlur={applyCustom}
+                  onKeyDown={e => {
+                    // Enter applies a valid length; an invalid one stays put with its message until the field is left.
+                    if (e.key === 'Enter') { e.preventDefault(); if (customValid) applyCustom(); }
+                  }}
+                />
+                <span className="mono muted">min</span>
+                <span id="custom-length-help" className={`custom-length-help ${customValid ? '' : 'invalid'}`}>
+                  {customValid ? `Whole minutes, ${MIN_LENGTH_MIN} to ${MAX_LENGTH_MIN}.` : `Enter a whole number from ${MIN_LENGTH_MIN} to ${MAX_LENGTH_MIN}.`}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -194,6 +239,24 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
             <span className="dot"><Icon name={previewing ? 'stop' : 'play'} size={12} /></span>
             {previewing ? 'Stop' : 'Play mix'}
           </button>
+          <div className="blend-toggle" role="radiogroup" aria-label="Mixing">
+            {[false, true].map(on => (
+              <button
+                key={String(on)}
+                role="radio"
+                aria-checked={blendOn === on}
+                className={blendOn === on ? 'on' : ''}
+                onClick={() => {
+                  if (blendOn === on) return;
+                  track('blend_toggled', { on, previewing, sounds: [...new Set(draft.components.map(c => c.sound))] });
+                  update(d => ({ blend: { on, v: d.blend?.v ?? BLEND_VERSION } }));
+                }}
+              >
+                {on ? 'Auto-Blend' : 'Original'}
+              </button>
+            ))}
+          </div>
+          <span className="blend-help">{blendOn ? 'Small tested level adjustments so overlapping sounds fit together.' : 'Every block plays exactly at its own level.'}</span>
           <button className="text-btn" onClick={() => setOnboarding(true)}>How it works</button>
         </div>
 
@@ -214,6 +277,16 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
           onSeek={f => preview(draft, snap(f * L) >= L ? 0 : f * L)}
         />
 
+        {hints.length > 0 && (
+          <ul className="blend-hints" aria-label="Suggestions">
+            {hints.map(h => (
+              <li key={hintKey(h)}>
+                <span>{hintText(h, draft)}</span>
+                <button className="icon-btn" onClick={() => setDismissed(d => [...d, hintKey(h)])} aria-label="Dismiss suggestion"><Icon name="close" size={14} /></button>
+              </li>
+            ))}
+          </ul>
+        )}
         {blocks.length > 0 && (
           <BlockInspector
             blocks={blocks}
@@ -249,4 +322,14 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
       {onboarding && <Onboarding onDone={() => setOnboarding(false)} />}
     </div>
   );
+}
+
+const hintKey = (h: BlendHint) => `${h.kind}:${[...h.ids].sort().join(',')}`;
+
+/** A short, plain suggestion for a combination that no level balance can fix. It never blocks anything. */
+function hintText(h: BlendHint, draft: MixDraft) {
+  const names = h.ids.map(id => draft.components.find(c => c.id === id)).filter((c): c is MixComponent => !!c).map(c => SOUNDS[c.sound].label);
+  if (h.kind === 'tones') return `${names[0]} and ${names[1]} clash while they overlap. Try placing one after the other.`;
+  if (h.kind === 'copies') return `${names[0]} is stacked on itself here. Try a different version for one of them, or a single block.`;
+  return `${names.length} textures play at once here. Try moving one to a later section.`;
 }
