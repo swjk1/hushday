@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CURATED_MIXES } from './catalog.js';
 import { canonicalize } from './fingerprint.js';
 import { decodeMix, encodeMix } from './share.js';
+import { SOUNDS } from './sounds.js';
 import { breakpointTimes, duckAt, envelopeAt, positionAt } from './timeline.js';
 import type { MixComponent, MixDraft } from './types.js';
 import { MixValidationError, sanitizeDraft } from './validate.js';
@@ -138,5 +139,21 @@ describe('share codes', () => {
   it('rejects codes that are not Mixes', () => {
     expect(decodeMix('not-a-mix')).toBeNull();
     expect(decodeMix(encodeMix({ ...mix([c('brown', 0, 30, 0.5)]), name: 'X' }).slice(0, 10))).toBeNull();
+  });
+});
+
+describe('recorded sounds', () => {
+  const recorded = Object.values(SOUNDS).filter(s => s.sample);
+
+  it('covers fire and stream, each with a usable loop and a credit', () => {
+    expect(recorded.map(s => s.id).sort()).toEqual(['fire', 'stream']);
+    for (const s of recorded) {
+      const { file, loopStart, loopEnd, credit } = s.sample!;
+      expect(file).toMatch(/^sounds\/[a-z]+\.mp3$/);
+      // The wrap-around margin before loopStart is what keeps the seam clean.
+      expect(loopStart).toBeGreaterThanOrEqual(0.25);
+      expect(loopEnd - loopStart).toBeGreaterThan(30);
+      expect(credit.length).toBeGreaterThan(5);
+    }
   });
 });

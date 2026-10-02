@@ -19,7 +19,7 @@ export interface SessionInfo {
 export interface Snapshot { status: Status; info: SessionInfo | null }
 
 interface Live {
-  voices: { id: string; sound: string; node: AudioWorkletNode; gain: GainNode }[];
+  voices: { id: string; sound: string; node: AudioNode; stop: () => void; gain: GainNode }[];
   bus: GainNode;
   session: GainNode;
   /** Context time at which elapsed === base. */
@@ -184,6 +184,26 @@ class AudioEngine {
     void el.play().catch(() => {});
   }
 
+  private samples = new Map<string, Promise<AudioBuffer>>();
+
+  /** Fetches and decodes a recorded loop once; later sessions reuse the decoded audio. */
+  private loadSample(file: string): Promise<AudioBuffer> {
+    let pending = this.samples.get(file);
+    if (!pending) {
+      const ctx = this.ctx!;
+      pending = fetch(`${import.meta.env.BASE_URL}${file}`)
+        .then(res => {
+          if (!res.ok) throw new Error(`${file}: ${res.status}`);
+          return res.arrayBuffer();
+        })
+        .then(bytes => ctx.decodeAudioData(bytes));
+      // A failed load is forgotten, so the next session tries again (for example once back online).
+      pending.catch(() => this.samples.delete(file));
+      this.samples.set(file, pending);
+    }
+    return pending;
+  }
+
   async start(info: SessionInfo, offset = 0) {
     this.wake();
     const ctx = this.ctx!;
@@ -194,7 +214,14 @@ class AudioEngine {
     this.set('playing', info);
     await this.moduleReady;
     await ctx.resume();
+    // Recorded sounds load once and stay decoded; a missing one is skipped rather than failing the session.
+    const recorded = await Promise.all(
+      [...new Set(info.mix.components.map(c => c.sound))]
+        .filter(s => SOUNDS[s].sample)
+        .map(async s => [s, await this.loadSample(SOUNDS[s].sample!.file).catch(() => null)] as const),
+    );
     if (this.snapshot.info !== info) return; // superseded while loading
+    const buffers = new Map(recorded);
 
     const mix = info.mix;
     const start = ctx.currentTime + 0.06;
@@ -208,16 +235,41 @@ class AudioEngine {
     const voices: Live['voices'] = [];
     for (const c of mix.components) {
       if (isQuiet(c)) continue;
-      const node = new AudioWorkletNode(ctx, 'hush-gen', {
-        numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2],
-        processorOptions: { type: c.sound, seed: seedOf(`${info.sourceId}:${c.id}`), freq: SOUNDS[c.sound].freq },
-      });
+      const def = SOUNDS[c.sound];
+      const seed = seedOf(`${info.sourceId}:${c.id}`);
+      let node: AudioNode;
+      let stop: () => void;
+      if (def.sample) {
+        const buffer = buffers.get(c.sound);
+        if (!buffer) continue;
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        src.loop = true;
+        src.loopStart = def.sample.loopStart;
+        src.loopEnd = Math.min(def.sample.loopEnd, buffer.duration);
+        // Each layer enters the recording at its own seeded point, carried on by the elapsed time,
+        // so two copies never line up and a resumed session continues roughly where it was.
+        const period = src.loopEnd - src.loopStart;
+        const into = src.loopStart + (((seed / 4294967296) * period + offset) % period);
+        src.start(start, into);
+        node = src;
+        stop = () => {
+          try { src.stop(); } catch { /* already stopped */ }
+        };
+      } else {
+        const gen = new AudioWorkletNode(ctx, 'hush-gen', {
+          numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2],
+          processorOptions: { type: c.sound, seed, freq: def.freq },
+        });
+        node = gen;
+        stop = () => gen.port.postMessage('stop');
+      }
       const gain = ctx.createGain();
       gain.gain.value = 0;
       node.connect(gain).connect(bus);
-      const peak = levelGain(c.level) * SOUNDS[c.sound].gain;
+      const peak = levelGain(c.level) * def.gain;
       scheduleCurve(gain.gain, mix, start, offset, until, breakpointTimes(c, mix), t => envelopeAt(c, t, mix) * peak);
-      voices.push({ id: c.id, sound: c.sound, node, gain });
+      voices.push({ id: c.id, sound: c.sound, node, stop, gain });
     }
     scheduleCurve(bus.gain, mix, start, offset, until, quietBreakpointTimes(mix), t => duckAt(mix, t));
 
@@ -325,7 +377,7 @@ class AudioEngine {
     g.linearRampToValueAtTime(0, now + fade);
     window.setTimeout(() => {
       for (const v of live.voices) {
-        v.node.port.postMessage('stop');
+        v.stop();
         v.node.disconnect();
         v.gain.disconnect();
       }

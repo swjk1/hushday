@@ -20,6 +20,12 @@ export interface SoundDef {
   family: 'Noise' | 'Tone' | 'Nature' | 'Function' | 'Space';
   /** Fixed pitch in Hz for pure tones; other sounds have none. */
   freq?: number;
+  /**
+   * A recorded loop instead of a generator. The file repeats seamlessly between loopStart and
+   * loopEnd (seconds); audio outside that range is wrap-around margin so the seam survives
+   * small timing shifts from MP3 decoders.
+   */
+  sample?: { file: string; loopStart: number; loopEnd: number; credit: string };
   /** Rough share of energy in the lows, mids and highs (0–1), drawn as a tone meter. */
   tone: [low: number, mid: number, high: number];
 }
@@ -97,17 +103,21 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
   },
   stream: {
     id: 'stream', label: 'Stream', name: 'Stream', category: 'continuous', color: '#8EE3F5',
-    blurb: 'A small brook over stones. Light and busy.',
-    detail: 'Noise through three resonators whose pitches wander quickly, which makes the gurgle, over a light wash.',
-    gain: 0.9, defaultLevel: 0.5, strand: { width: 1.1, spacing: 2.2, texture: 'ripple' },
+    blurb: 'Soft water flowing, close up.',
+    detail: 'A real recording of a small stream, looped seamlessly about once a minute. "Stream River Water Up Close" by jackthemurray, CC0.',
+    // Matches the level the synthesised stream used to play at.
+    gain: 1.67, defaultLevel: 0.5, strand: { width: 1.1, spacing: 2.2, texture: 'ripple' },
     family: 'Nature', tone: [0.2, 0.85, 0.7],
+    sample: { file: 'sounds/stream.mp3', loopStart: 0.5, loopEnd: 63.389333, credit: 'jackthemurray (Freesound 433589), CC0' },
   },
   fire: {
     id: 'fire', label: 'Fire', name: 'Fire', category: 'continuous', color: '#FF9A3C',
-    blurb: 'A wood fire settling. Low roar and crackle.',
-    detail: 'A deep, slowly flickering roar with sparse, very short crackles and a little drawn-in hiss.',
-    gain: 1, defaultLevel: 0.5, strand: { width: 1.3, spacing: 2.6, texture: 'spike' },
+    blurb: 'A small wood fire crackling outdoors.',
+    detail: 'A real recording of a small fire in Stabulankiai, Lithuania, looped seamlessly about every two and a half minutes. By alas23 via Radio Aporee, public domain.',
+    // Matches the level the synthesised fire used to play at.
+    gain: 2.41, defaultLevel: 0.5, strand: { width: 1.3, spacing: 2.6, texture: 'spike' },
     family: 'Nature', tone: [0.9, 0.4, 0.55],
+    sample: { file: 'sounds/fire.mp3', loopStart: 0.5, loopEnd: 140.543271, credit: 'alas23 via Radio Aporee (archive.org aporee_19997_23285), Public Domain Mark' },
   },
   night: {
     id: 'night', label: 'Night', name: 'Night crickets', category: 'continuous', color: '#5DBF8A',

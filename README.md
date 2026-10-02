@@ -27,6 +27,15 @@ A Mix reduces to: repeat mode, length bucket (≤15 / ≤35 / ≤70 / longer min
 - Vercel Functions in `api/` (Web-standard handlers) with Neon Postgres via the Vercel Marketplace. Schema is created on first request (`server/db.ts`).
 - Anonymous device accounts (`api/session.ts`); usage events batched to `api/events.ts`. Server-side events cover fingerprints, discovery numbers, and Mix create/edit/delete/save.
 
+## Recordings
+
+Fire and Stream play real recordings; every other sound is synthesised. Both loops live in `public/sounds/` and were prepared by trimming the edges, evening out slow level drift, crossfading the end into the start, and easing down the rarest loud pops. Each file wraps half a second of its own loop onto both edges, so the loop points in `src/core/sounds.ts` stay seamless if an MP3 decoder shifts timing slightly.
+
+| Sound | Recording | By | Licence |
+| --- | --- | --- | --- |
+| Fire | [Lithuania, Stabulankiai, fireplace](https://archive.org/details/aporee_19997_23285) | alas23, via Radio Aporee | Public Domain Mark 1.0 |
+| Stream | [Stream River Water Up Close](https://freesound.org/people/jackthemurray/sounds/433589/) | jackthemurray | CC0 1.0 |
+
 ## Run
 
 ```sh

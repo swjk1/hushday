@@ -69,11 +69,6 @@ class HushGenerator extends AudioWorkletProcessor {
     // Rain intensity drift
     this.rainDrift = 0.5;
     this.rainTarget = 0.5;
-    // Fire: a slow flicker on the roar.
-    this.flick = 0.7;
-    this.flickTarget = 0.7;
-    // Stream: a few resonators per channel whose pitches wander quickly, which is the gurgle.
-    this.res = [0, 1].map(() => [0, 1, 2].map(() => ({ low: 0, band: 0, f: 400 + this.shared() * 1800, target: 400 + this.shared() * 1800 })));
     // Night: three crickets at different pitches, rates and positions, each pausing now and then.
     this.crickets = [
       { f: 4100, rate: 2.1, trill: 34, len: 0.42, pan: 0.25, phase: this.shared(), on: true },
@@ -184,58 +179,6 @@ class HushGenerator extends AudioWorkletProcessor {
           const foam = (noise - c.lp) * s * s * s * 0.16;
           const v = (c.lp2 * 1.5 + foam) * env;
           if (j === 0) l = v; else r = v;
-        }
-      } else if (type === 'fire') {
-        if (i === 0) {
-          if (this.shared() < 0.012) this.flickTarget = 0.45 + this.shared() * 0.55;
-          this.flick += (this.flickTarget - this.flick) * 0.012;
-        }
-        for (let k = 0; k < 2; k++) {
-          const c = this.ch[k];
-          const w = white(c);
-          // Deep roar: brown noise low-passed hard, flickering slowly.
-          c.lp += (brown(c, w) - c.lp) * 0.012;
-          const roar = c.lp * 2.4 * (0.55 + 0.45 * this.flick);
-          // Crackle: sparse, very short high-passed bursts, a few dozen a second at most.
-          if (c.rnd() < (9 + 12 * this.flick) * this.dt) {
-            c.drop = 0.3 + c.rnd() * 0.7;
-            c.decay = 0.965 + c.rnd() * 0.034;
-          }
-          c.drop *= c.decay;
-          const w2 = white(c);
-          c.hp += (w2 - c.hp) * 0.12;
-          const crackle = c.drop * (w2 - c.hp) * 1.1;
-          // A little hiss for the air being drawn in.
-          const hiss = (pink(c, w) - c.lp * 0.3) * 0.12;
-          const v = roar + crackle + hiss;
-          if (k === 0) l = v; else r = v;
-        }
-      } else if (type === 'stream') {
-        if ((i & 63) === 0) {
-          for (const bank of this.res) {
-            for (const q of bank) {
-              if (this.shared() < 0.06) q.target = 350 + this.shared() * 2200;
-              q.f += (q.target - q.f) * 0.1;
-            }
-          }
-        }
-        for (let k = 0; k < 2; k++) {
-          const c = this.ch[k];
-          const w = white(c);
-          let gurgle = 0;
-          for (const q of this.res[k]) {
-            const F = 2 * Math.sin((Math.PI * q.f) / sampleRate);
-            q.low += F * q.band;
-            const high = w - q.low - 0.35 * q.band;
-            q.band += F * high;
-            gurgle += q.band;
-          }
-          // Steady wash underneath, with the deep end trimmed so it stays light.
-          const p = pink(c, w);
-          c.lp += (p - c.lp) * 0.02;
-          const wash = (p - c.lp) * 0.55;
-          const v = gurgle * 0.28 + wash;
-          if (k === 0) l = v; else r = v;
         }
       } else if (type === 'fan') {
         const t = this.t;
