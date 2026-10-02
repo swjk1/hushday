@@ -38,6 +38,7 @@ const WAVE: Record<Exclude<SoundId, 'quiet'>, WaveStyle> = {
   fire: { len: 18, threads: 3, width: 1.2, gap: 1.4, lane: 0.06, speed: 1.7, grain: true },
   night: { len: 24, threads: 2, width: 1, gap: 0.9, lane: -0.14, speed: 1.3, dash: [2, 6], pulse: true },
   focus: { len: 28, threads: 2, width: 1.7, gap: 0.9, lane: 0, speed: 1.5, dash: [5, 4], pulse: true },
+  zen: { len: 120, threads: 2, width: 1.5, gap: 0.6, lane: 0.08, speed: 0.35, breathe: true },
 };
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));

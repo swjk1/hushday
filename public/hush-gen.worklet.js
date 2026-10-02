@@ -200,18 +200,6 @@ class HushGenerator extends AudioWorkletProcessor {
         this.phase += this.freq * this.dt;
         if (this.phase >= 1) this.phase -= 1;
         l = r = Math.sin(TAU * this.phase) * 0.5;
-      } else if (type === 'fan') {
-        const t = this.t;
-        // Motor hum with a couple of harmonics and a faint blade-pass wobble, the same in both ears.
-        const wobble = 1 + 0.12 * Math.sin(TAU * 23.5 * t);
-        const hum = (0.5 * Math.sin(TAU * 118 * t) + 0.22 * Math.sin(TAU * 236 * t) + 0.08 * Math.sin(TAU * 354 * t)) * wobble;
-        for (let k = 0; k < 2; k++) {
-          const c = this.ch[k];
-          // Air rush: pink noise low-passed around 900 Hz, steady.
-          c.lp += (pink(c, white(c)) - c.lp) * 0.11;
-          const v = hum * 0.22 + c.lp * 1.5;
-          if (k === 0) l = v; else r = v;
-        }
       } else if (type === 'focus') {
         const t = this.t;
         const drift = 0.88 + 0.12 * Math.sin(TAU * 0.04 * t);

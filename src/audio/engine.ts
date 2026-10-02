@@ -277,7 +277,7 @@ class AudioEngine {
       } else {
         const gen = new AudioWorkletNode(ctx, 'hush-gen', {
           numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2],
-          processorOptions: { type: c.sound, seed, freq: def.freq, synth: variant?.synth },
+          processorOptions: { type: c.sound, seed, freq: def.freq, synth: variant?.synth ?? def.synth },
         });
         node = gen;
         stop = () => gen.port.postMessage('stop');

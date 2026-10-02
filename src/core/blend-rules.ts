@@ -44,7 +44,7 @@ export const RULES: Record<number, BlendRules> = {
       brown: 'bed', red: 'bed', pink: 'bed', fan: 'bed', ocean: 'bed',
       rain: 'texture', wind: 'texture', stream: 'texture', fire: 'texture',
       white: 'bright', night: 'bright',
-      tone432: 'tonal', tone528: 'tonal', focus: 'tonal',
+      tone432: 'tonal', tone528: 'tonal', focus: 'tonal', zen: 'tonal',
     },
     roleCut: {
       // A bed makes room for detail on top of it, and shares space with another bed.
@@ -66,8 +66,8 @@ export const RULES: Record<number, BlendRules> = {
     makeupMax: 3,
     boostMax: 1,
     fundamentals: {
-      tone432: [432], 'tone432.a': [432], tone528: [528], 'tone528.a': [528],
-      focus: [110, 164.81], 'focus.a': [108], 'focus.b': [108, 162], fan: [118], 'fan.b': [108],
+      tone432: [432], tone528: [528],
+      focus: [110, 164.81], zen: [108, 162], fan: [108],
     },
     denseAt: 4,
     data: SOUND_DATA_V1,

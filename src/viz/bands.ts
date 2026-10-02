@@ -204,6 +204,11 @@ export const BANDS: Record<Exclude<SoundId, 'quiet'>, Band> = {
       return c.off * 1.8 * (1 + open * 1.4) + Math.sin(u * TAU + t * 0.2) * c.h * 0.03 + dy;
     },
   },
+  // Two slow, still waves crossing into a chain of lenses: calm, regular, unhurried.
+  zen: {
+    threads: 7,
+    y: (u, _i, _k, _n, t, c) => Math.sin(u * TAU * 2.5 - t * 0.25) * c.h * 0.18 * Math.cos(c.f * Math.PI),
+  },
   // The band pinches and swells at a steady spacing, like beads on a string travelling along.
   focus: {
     threads: 8,

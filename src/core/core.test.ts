@@ -176,10 +176,11 @@ describe('sound versions', () => {
   const withVariants = Object.values(SOUNDS).filter(s => s.variants);
 
   it('offers simpler versions for ten sounds, each calibrated and described', () => {
-    expect(withVariants.map(s => s.id).sort()).toEqual(['fan', 'fire', 'focus', 'night', 'ocean', 'rain', 'stream', 'tone432', 'tone528', 'wind']);
+    // What was kept after listening: a second rain recording.
+    expect(withVariants.map(s => s.id).sort()).toEqual(['rain']);
     for (const s of withVariants) {
       // The Hz tones keep their exact pitches, so they offer only A; everything else offers A and B.
-      expect(s.variants!.map(v => v.id)).toEqual(s.id === 'tone432' || s.id === 'tone528' ? ['a'] : ['a', 'b']);
+      expect(s.variants!.map(v => v.id)).toEqual(s.id === 'rain' ? ['b'] : ['a']);
       if (s.freq) for (const v of s.variants!) expect(v.synth?.tone).toBe(s.freq);
       for (const v of s.variants!) {
         expect(v.gain).toBeGreaterThan(0);
@@ -191,12 +192,13 @@ describe('sound versions', () => {
   });
 
   it('keeps a valid version through saving and drops one a sound does not offer', () => {
-    const clean = sanitizeDraft(mix([{ ...c('fire', 0, 30, 0.5), variant: 'a' }, { ...c('brown', 0, 30, 0.5), variant: 'b' }, { ...c('rain', 0, 30, 0.5), variant: 'z' as never }]));
-    expect(clean.components.map(x => x.variant)).toEqual(['a', undefined, undefined]);
+    // Rain offers B; Fire's versions were retired, so an old Fire A plays the original; Brown never had one.
+    const clean = sanitizeDraft(mix([{ ...c('rain', 0, 30, 0.5), variant: 'b' }, { ...c('fire', 0, 30, 0.5), variant: 'a' }, { ...c('brown', 0, 30, 0.5), variant: 'b' }, { ...c('wind', 0, 30, 0.5), variant: 'z' as never }]));
+    expect(clean.components.map(x => x.variant)).toEqual(['b', undefined, undefined, undefined]);
   });
 
   it('carries versions through share links, and leaves originals exactly as before', () => {
-    const original = { ...mix([{ ...c('ocean', 0, 30, 0.6), variant: 'b' }, c('brown', 0, 30, 0.7)]), name: 'SHORE' };
+    const original = { ...mix([{ ...c('rain', 0, 30, 0.6), variant: 'b' }, c('brown', 0, 30, 0.7)]), name: 'SHORE' };
     const back = decodeMix(encodeMix(original))!;
     expect(back.components.map(x => x.variant)).toEqual(['b', undefined]);
     // A Mix without versions encodes exactly as it did before versions existed.
@@ -208,6 +210,6 @@ describe('sound versions', () => {
   it('treats a version as its own discovery, without changing the originals', () => {
     const a = canonicalize(mix([c('fire', 0, 30, 0.5)]));
     expect(a).toContain('fire@full');
-    expect(canonicalize(mix([{ ...c('fire', 0, 30, 0.5), variant: 'a' }]))).not.toBe(a);
+    expect(canonicalize(mix([{ ...c('fire', 0, 30, 0.5), variant: 'b' }]))).not.toBe(a);
   });
 });

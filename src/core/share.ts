@@ -13,7 +13,7 @@ const VERSION = 1;
  * (validation swaps it for its replacement) and new sounds go on the end, so old links keep
  * decoding to the same Mix. Never reorder this list.
  */
-const SLOTS: string[] = ['brown', 'red', 'pink', 'white', 'hifreq', 'rain', 'ocean', 'wind', 'focus', 'quiet', 'tone432', 'tone528', 'fan', 'stream', 'fire', 'night'];
+const SLOTS: string[] = ['brown', 'red', 'pink', 'white', 'hifreq', 'rain', 'ocean', 'wind', 'focus', 'quiet', 'tone432', 'tone528', 'fan', 'stream', 'fire', 'night', 'zen'];
 
 type Packed = [v: number, name: string, lengthMin: number, repeat: 0 | 1, parts: [sound: number, start: number, end: number, level: number, slow: 0 | 1, row?: number, variant?: number][], blend?: [on: 0 | 1, v: number]];
 

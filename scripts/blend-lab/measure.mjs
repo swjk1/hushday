@@ -79,7 +79,7 @@ const out = {};
 for (const id of SOUND_ORDER) {
   const def = SOUNDS[id];
   if (def.category === 'quiet') continue;
-  const versions = [{ key: id, gain: def.gain, sample: def.sample, options: { type: id, freq: def.freq } }];
+  const versions = [{ key: id, gain: def.gain, sample: def.sample, options: { type: id, freq: def.freq, synth: def.synth } }];
   for (const v of def.variants ?? []) versions.push({ key: `${id}.${v.id}`, gain: v.gain, sample: v.sample, options: { type: id, freq: def.freq, synth: v.synth } });
   for (const v of versions) {
     let [L, R] = v.sample ? decode(v.sample.file, v.sample.loopStart, v.sample.loopEnd) : render(v.options, 33);
