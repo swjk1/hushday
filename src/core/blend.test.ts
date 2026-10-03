@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { blendDbAt, blendGainAt, blendHints, planBlend } from './blend.js';
+import { PACE_RATE, loopMotion, motionAt, motionDepth, paceCurve, paceDbAt, paceWeightAt } from './pace.js';
 import { BLEND_VERSION } from './blend-version.js';
 import { CURATED_MIXES } from './catalog.js';
 import { canonicalize } from './fingerprint.js';
@@ -159,5 +160,88 @@ describe('Auto-Blend saving and sharing', () => {
   it('is not part of a discovery: on and off are the same Mix to find', () => {
     const mix = mixOf([block('brown', 0, 30), block('rain', 5, 25)]);
     expect(canonicalize(mix)).toBe(canonicalize({ ...mix, blend: undefined }));
+  });
+});
+
+describe('Auto-Blend pace matching (v2)', () => {
+  it('lets the waves lead and the other recordings follow, leaving noises and tones alone', () => {
+    const pace = planBlend(mixOf([block('brown', 0, 30), block('wind', 0, 30), block('ocean', 0, 30), block('rain', 0, 30), block('tone432', 0, 30)]))!.pace!;
+    expect(pace.lead).toBe('ocean');
+    expect(Object.keys(pace.followers).sort()).toEqual(['rain', 'wind']);
+    // Wind rides the swell more than steady rain does.
+    expect(pace.followers.wind.follow).toBeGreaterThan(pace.followers.rain.follow);
+  });
+
+  it('falls back to the gusts without waves, and does nothing for recordings that never overlap', () => {
+    expect(planBlend(mixOf([block('wind', 0, 30), block('stream', 0, 30)]))!.pace!.lead).toBe('wind');
+    expect(planBlend(mixOf([block('ocean', 0, 10), block('rain', 15, 30)]))!.pace).toBeUndefined();
+    // Ocean overlaps nothing, so the wind leads the rain instead.
+    expect(planBlend(mixOf([block('ocean', 0, 10), block('wind', 12, 30), block('rain', 12, 30)]))!.pace!.lead).toBe('wind');
+    expect(planBlend(mixOf([block('brown', 0, 30), block('rain', 0, 30)]))!.pace).toBeUndefined();
+  });
+
+  it('is off for version 1 and when Auto-Blend is off', () => {
+    const comps = [block('ocean', 0, 30), block('wind', 0, 30)];
+    expect(planBlend({ ...mixOf(comps), blend: { on: true, v: 1 } })!.pace).toBeUndefined();
+    expect(planBlend({ ...mixOf(comps), blend: { on: false, v: BLEND_VERSION } })).toBeNull();
+  });
+
+  it('never depends on order or levels', () => {
+    const comps = [block('ocean', 0, 20, 'o1'), block('ocean', 5, 30, 'o2'), block('wind', 0, 30, 'w'), block('stream', 10, 30, 's')];
+    const a = planBlend(mixOf(comps))!.pace;
+    const rand = rng(7);
+    const b = planBlend(mixOf([...comps].reverse().map(c => ({ ...c, level: 0.1 + rand() * 0.9 }))))!.pace;
+    expect(b).toEqual(a);
+    // Two Oceans: the earlier one leads and the other falls in with its waves.
+    expect(a!.lead).toBe('o1');
+    expect(a!.followers.o2).toBeDefined();
+  });
+
+  it('swells in and out with the leader’s own fades', () => {
+    const mix = mixOf([block('ocean', 10, 20), block('wind', 0, 30)]);
+    const pace = planBlend(mix)!.pace!;
+    expect(paceWeightAt(pace, 5 * 60)).toBe(0);
+    expect(paceWeightAt(pace, 15 * 60)).toBe(1);
+    expect(paceWeightAt(pace, 25 * 60)).toBe(0);
+  });
+
+  it('measures a loop’s slow motion seamlessly, around its own average', () => {
+    const sr = 400, period = 90, n = sr * period;
+    // Noise whose level swells ±3 dB once every 10 s.
+    const rand = rng(3);
+    const ch = Float32Array.from({ length: n }, (_, i) => (rand() * 2 - 1) * Math.pow(10, (3 * Math.sin((2 * Math.PI * i) / (sr * 10))) / 20));
+    const motion = loopMotion([ch], sr, 0, n);
+    expect(motion.length).toBe(period * PACE_RATE);
+    expect(Math.abs(motion.reduce((s, v) => s + v, 0) / motion.length)).toBeLessThan(1e-3);
+    expect(motionDepth(motion)).toBeGreaterThan(3.5);
+    expect(motionDepth(motion)).toBeLessThan(6.5);
+    // Steady noise barely moves.
+    const flat = loopMotion([Float32Array.from({ length: n }, () => rand() * 2 - 1)], sr, 0, n);
+    expect(motionDepth(flat)).toBeLessThan(0.6);
+    // Wrapping: the end of the loop runs straight into its start.
+    const loop = { motion, period, phase: 0 };
+    expect(Math.abs(motionAt(loop, period - 1e-6) - motionAt(loop, 0))).toBeLessThan(0.05);
+  });
+
+  it('stays within its bounds, moves slowly, and is exactly 1 where it does not apply', () => {
+    const mix = mixOf([block('ocean', 5, 25), block('wind', 0, 30), block('brown', 0, 30)]);
+    const pace = planBlend(mix)!.pace!;
+    const wave = (depth: number, sec: number) => Float32Array.from({ length: 90 * PACE_RATE }, (_, k) => depth * Math.sin((2 * Math.PI * k) / (PACE_RATE * sec)));
+    const lead = { motion: wave(3, 10), period: 90, phase: 17.3 };
+    const own = { motion: wave(2, 6), period: 90, phase: 41.9 };
+    const curve = paceCurve(pace, 'wind', mix, lead, own, 0, mix.lengthSec * 2);
+    let prev = 0;
+    for (let k = 0; k < curve.length; k++) {
+      const db = 20 * Math.log10(curve[k]);
+      expect(db).toBeLessThanOrEqual(pace.maxUp + 1e-6);
+      expect(db).toBeGreaterThanOrEqual(pace.maxDown - 1e-6);
+      if (k > 0) expect(Math.abs(db - prev) * PACE_RATE).toBeLessThan(2);
+      prev = db;
+    }
+    // Before the waves come in, and for a sound that doesn't follow, nothing changes.
+    expect(curve[2 * 60 * PACE_RATE]).toBe(1);
+    expect(paceDbAt(pace, 'brown', mix, lead, own, 600)).toBe(0);
+    // With the waves in, the wind leans into them.
+    expect(Math.max(...curve)).toBeGreaterThan(Math.pow(10, 0.5 / 20));
   });
 });

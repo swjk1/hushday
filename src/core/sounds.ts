@@ -126,19 +126,19 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
   },
   ocean: {
     id: 'ocean', label: 'Ocean', name: 'Ocean', category: 'continuous', color: '#4FCDB3',
-    blurb: 'Waves breaking close on a beach.',
-    detail: 'A real recording of waves on Klong Muang beach, Thailand, looped seamlessly every 90 seconds. By Felix Blume via Radio Aporee, public domain.',
+    blurb: 'Waves rolling in close on a beach, soft and even.',
+    detail: 'A real recording of waves on Klong Muang beach, Thailand, with the hiss of the spray softened and the rise and fall of the waves evened out, looped seamlessly every 90 seconds. By Felix Blume via Radio Aporee, public domain.',
     // Calibrated (ITU-R BS.1770) to the loudness this sound has always had, so existing mixes keep their balance.
-    gain: 1.74, defaultLevel: 0.5, strand: { width: 1.8, spacing: 3.2, texture: 'swell' },
+    gain: 1.86, defaultLevel: 0.5, strand: { width: 1.8, spacing: 3.2, texture: 'swell' },
     family: 'Nature', tone: [0.9, 0.6, 0.35],
     sample: { file: 'sounds/ocean.mp3', loopStart: 0.5, loopEnd: 90.5, credit: 'Felix Blume via Radio Aporee (archive.org aporee_47950_54511), Public Domain Mark' },
   },
   wind: {
     id: 'wind', label: 'Wind', name: 'Wind', category: 'continuous', color: '#F1D27E',
-    blurb: 'Wind moving through reeds.',
-    detail: 'A real recording of wind on a grove of reeds in Copenhagen, looped seamlessly every 90 seconds. By Alessandro Altavilla via Radio Aporee, public domain.',
+    blurb: 'Wind moving softly through reeds.',
+    detail: 'A real recording of wind on a grove of reeds in Copenhagen, with the rushing hiss softened, the gusts evened out and the whistling of the reeds taken down, looped seamlessly every 90 seconds. By Alessandro Altavilla via Radio Aporee, public domain.',
     // Calibrated (ITU-R BS.1770) to the loudness this sound has always had, so existing mixes keep their balance.
-    gain: 1.84, defaultLevel: 0.45, strand: { width: 0.9, spacing: 2.4, texture: 'silk' },
+    gain: 1.97, defaultLevel: 0.45, strand: { width: 0.9, spacing: 2.4, texture: 'silk' },
     family: 'Nature', tone: [0.55, 0.8, 0.45],
     sample: { file: 'sounds/wind.mp3', loopStart: 0.5, loopEnd: 90.5, credit: 'Alessandro Altavilla via Radio Aporee (archive.org aporee_14720_17165), Public Domain Mark' },
   },
@@ -217,6 +217,17 @@ const VARIANTS: Partial<Record<SoundId, SoundVariant[]>> = {
   rain: [
     { id: 'b', label: 'Heavy rain', note: 'Dense, steady', blurb: 'Heavy rain in Egå, Denmark. A fuller, denser downpour.', gain: 1.77, sample: { file: 'sounds/rain-b.mp3', loopStart: 0.5, loopEnd: 90.5, credit: 'audiotraction via Radio Aporee (archive.org aporee_58354_66946), Public Domain Mark' } },
   ],
+  // Ids are never reused: earlier, retired versions of Wind and Stream were 'a' and 'b'.
+  wind: [
+    { id: 'c', label: 'Windy forest', note: 'Trees, gusting', blurb: 'A very windy day in a forest at Sälsten, Sweden: wind roaring through the treetops, its hiss and gusts softened.', gain: 2.17, sample: { file: 'sounds/wind-c.mp3', loopStart: 0.5, loopEnd: 90.5, credit: 'a Radio Aporee recordist (archive.org aporee_51051_58278), Public Domain Mark' } },
+    { id: 'd', label: 'Strong wind', note: 'Deep, rushing', blurb: 'Strong wind across the Lower Geyser Basin in Yellowstone. Deep and dark, a steady rush with no hiss.', gain: 2.23, sample: { file: 'sounds/wind-d.mp3', loopStart: 0.5, loopEnd: 90.5, credit: 'NPS/Peter Comley, Yellowstone National Park Sound Library (archive.org nps-yell-sounds-soundscapes), Public Domain Mark' } },
+    { id: 'e', label: 'Howling wind', note: 'Wires, hedgerows', blurb: 'A wild day in Cornwall: wind over wires and through the hedgerows, the howl and the gusts softened.', gain: 2.01, sample: { file: 'sounds/wind-e.mp3', loopStart: 0.5, loopEnd: 90.5, credit: 'djake via Radio Aporee (archive.org aporee_30717_35328), Public Domain Mark' } },
+  ],
+  stream: [
+    { id: 'c', label: 'Babbling brook', note: 'Close, bubbly', blurb: 'The Krčnik stream in Slovenia, recorded up close. Lively bubbling and trickling, highs softened a little.', gain: 0.92, sample: { file: 'sounds/stream-c.mp3', loopStart: 0.5, loopEnd: 90.5, credit: 'Bojan Marusic via Radio Aporee (archive.org aporee_50749_57876), Public Domain Mark' } },
+    { id: 'd', label: 'Snowmelt brook', note: 'Small, trickling', blurb: 'A small brook running through thawing snow in Alytus, Lithuania. Clear and trickling.', gain: 0.92, sample: { file: 'sounds/stream-d.mp3', loopStart: 0.5, loopEnd: 90.5, credit: 'Martynas Baranauskas via Radio Aporee (archive.org aporee_71794_83851), Public Domain Mark' } },
+    { id: 'e', label: 'Little river', note: 'Smooth, steady', blurb: 'A little river running over roots and stones in Deguliai, Lithuania. The smoothest, steadiest flow.', gain: 0.99, sample: { file: 'sounds/stream-e.mp3', loopStart: 0.5, loopEnd: 90.5, credit: 'alas23/sala via Radio Aporee (archive.org aporee_57345_65625), Public Domain Mark' } },
+  ],
 };
 for (const [id, list] of Object.entries(VARIANTS)) SOUNDS[id as SoundId].variants = list;
 
@@ -226,6 +237,12 @@ export const variantOf = (sound: SoundId, variant: VariantId | undefined): Sound
 
 /** Display name of a block's version: the variant's label, or "Original". */
 export const variantLabel = (sound: SoundId, variant: VariantId | undefined) => variantOf(sound, variant)?.label ?? 'Original';
+
+/** The letter a version is shown with: the original is A, then B, C, D in the order offered (stored ids can skip retired ones). */
+export const variantMark = (sound: SoundId, variant: VariantId | undefined) => {
+  const i = variant ? SOUNDS[sound].variants?.findIndex(v => v.id === variant) ?? -1 : -1;
+  return i < 0 ? 'A' : String.fromCharCode(66 + i);
+};
 
 export const isSoundId = (value: unknown): value is SoundId =>
   typeof value === 'string' && Object.prototype.hasOwnProperty.call(SOUNDS, value);

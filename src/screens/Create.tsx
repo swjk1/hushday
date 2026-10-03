@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { engine } from '../audio/engine';
 import { Icon } from '../components/bits';
 import { PlayerCard } from '../components/PlayerCard';
-import { blendHints, type BlendHint } from '../core/blend';
+import { blendHints, planBlend, type BlendHint } from '../core/blend';
 import { BLEND_VERSION } from '../core/blend-version';
 import { SOUNDS } from '../core/sounds';
 import type { MixComponent, MixDraft, SoundId } from '../core/types';
@@ -45,6 +45,7 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
   };
   const [dismissed, setDismissed] = useState<string[]>([]);
   const hints = useMemo(() => blendHints(draft).filter(h => !dismissed.includes(hintKey(h))).slice(0, 3), [draft, dismissed]);
+  const pace = useMemo(() => paceNote(draft), [draft]);
 
   const counts = useMemo(() => {
     const m = new Map<SoundId, number>();
@@ -249,14 +250,15 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
                 onClick={() => {
                   if (blendOn === on) return;
                   track('blend_toggled', { on, previewing, sounds: [...new Set(draft.components.map(c => c.sound))] });
-                  update(d => ({ blend: { on, v: d.blend?.v ?? BLEND_VERSION } }));
+                  // Turning Auto-Blend on picks up the newest rules; turning it off keeps the saved version.
+                  update(d => ({ blend: { on, v: on ? BLEND_VERSION : d.blend?.v ?? BLEND_VERSION } }));
                 }}
               >
                 {on ? 'Auto-Blend' : 'Original'}
               </button>
             ))}
           </div>
-          <span className="blend-help">{blendOn ? 'Small tested level adjustments so overlapping sounds fit together.' : 'Every block plays exactly at its own level.'}</span>
+          <span className="blend-help">{blendOn ? `Small tested level adjustments so overlapping sounds fit together.${pace ? ` ${pace}` : ''}` : 'Every block plays exactly at its own level.'}</span>
           <button className="text-btn" onClick={() => setOnboarding(true)}>How it works</button>
         </div>
 
@@ -325,6 +327,19 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
 }
 
 const hintKey = (h: BlendHint) => `${h.kind}:${[...h.ids].sort().join(',')}`;
+
+/** One line on pace matching when it is at work, e.g. "Wind and Rain move with the waves." */
+function paceNote(draft: MixDraft) {
+  const pace = planBlend(draft)?.pace;
+  const lead = pace && draft.components.find(c => c.id === pace.lead);
+  if (!pace || !lead) return null;
+  const names = [...new Set(Object.keys(pace.followers).map(id => draft.components.find(c => c.id === id)).filter((c): c is MixComponent => !!c)
+    .map(c => (c.sound === lead.sound ? `the other ${SOUNDS[c.sound].label}` : SOUNDS[c.sound].label)))];
+  if (!names.length) return null;
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  const motion = lead.sound === 'ocean' ? 'waves' : 'gusts';
+  return `${list[0].toUpperCase()}${list.slice(1)} ${names.length === 1 ? 'moves' : 'move'} with the ${motion}.`;
+}
 
 /** A short, plain suggestion for a combination that no level balance can fix. It never blocks anything. */
 function hintText(h: BlendHint, draft: MixDraft) {

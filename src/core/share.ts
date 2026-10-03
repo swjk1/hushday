@@ -18,7 +18,7 @@ const SLOTS: string[] = ['brown', 'red', 'pink', 'white', 'hifreq', 'rain', 'oce
 type Packed = [v: number, name: string, lengthMin: number, repeat: 0 | 1, parts: [sound: number, start: number, end: number, level: number, slow: 0 | 1, row?: number, variant?: number][], blend?: [on: 0 | 1, v: number]];
 
 /** Variant codes inside a part. Appended only when a block uses one, so older links stay short and older apps ignore it. */
-const VARIANT_CODES = ['', 'a', 'b'] as const;
+const VARIANT_CODES = ['', 'a', 'b', 'c', 'd', 'e'] as const;
 
 const toBase64Url = (text: string) => btoa(String.fromCharCode(...new TextEncoder().encode(text))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const fromBase64Url = (code: string) => {

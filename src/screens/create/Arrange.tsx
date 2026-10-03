@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { engine } from '../../audio/engine';
 import { RowCanvas } from '../../components/RowCanvas';
-import { SOUNDS } from '../../core/sounds';
+import { SOUNDS, variantMark } from '../../core/sounds';
 import { fades } from '../../core/timeline';
 import type { MixComponent, MixDraft } from '../../core/types';
 import { MIN_SPAN_SEC } from '../../core/validate';
@@ -225,7 +225,7 @@ export function Arrange({ draft, selected, previewing, onSelect, onDrop, onResiz
               aria-label={`Select ${def.name}`}
             >
               <span className="dot" style={{ background: def.color }} />
-              {def.label}{c.variant ? ` ${c.variant.toUpperCase()}` : ''}
+              {def.label}{c.variant ? ` ${variantMark(c.sound, c.variant)}` : ''}
             </button>
           );
         })}

@@ -22,6 +22,20 @@ import type { MixComponent, MixDraft } from './types.js';
  * and out with the music, and they are continuous across the loop point.
  */
 
+/** Pace matching (rules v2 on): one leader sets the pace, and the recordings overlapping it follow. See pace.ts. */
+export interface PacePlan {
+  /** The block whose motion sets the pace. */
+  lead: string;
+  /** The leader's fade over one pass (seconds, 0–1), linear in between: following swells in and out with it. */
+  times: number[];
+  weight: number[];
+  /** Per following block: how much of its own slow motion is evened out, and how much of the leader's it takes on. */
+  followers: Record<string, { flatten: number; follow: number }>;
+  /** Bounds of the adjustment, in dB. */
+  maxUp: number;
+  maxDown: number;
+}
+
 export interface BlendPlan {
   v: number;
   /** Constant boost for the whole Mix, in dB (≥ 0). */
@@ -29,6 +43,8 @@ export interface BlendPlan {
   /** Per block id: the cut in dB at each time (seconds into one pass), linear in between, and the most
    * its final gain may reach in dB (low-heavy blocks: 0, so the makeup never adds bass). */
   voices: Record<string, { times: number[]; db: number[]; ceiling: number }>;
+  /** Present from rules v2 when some sound sets a pace and others overlap it. */
+  pace?: PacePlan;
 }
 
 export interface BlendHint {
@@ -161,7 +177,38 @@ export function planBlend(mix: MixDraft): BlendPlan | null {
   list.forEach((c, j) => {
     plan.voices[c.id] = { ...simplify(times, series[j].map(v => Math.round(v * 100) / 100)), ceiling: ceilings[j] };
   });
+  const pace = planPace(rules, list, mix);
+  if (pace) plan.pace = pace;
   return plan;
+}
+
+const overlaps = (a: MixComponent, b: MixComponent) => a.start < b.end && b.start < a.end;
+
+/**
+ * Who sets the pace, and who follows. The leader is the sound that moves most (waves before gusts, by measured
+ * motion) among those allowed to lead, picking the first that overlaps at least one follower; ties go to the
+ * earlier block, then the id, so the choice never depends on order or levels. Followers are the other recordings
+ * that overlap it, including another copy of the leader's own sound.
+ */
+function planPace(rules: BlendRules, list: MixComponent[], mix: MixDraft): PacePlan | undefined {
+  const r = rules.pace;
+  if (!r) return undefined;
+  const motion = (c: MixComponent) => rules.data[versionKey(c)]?.motion ?? rules.data[c.sound]?.motion ?? 0;
+  const candidates = list
+    .filter(c => r.leaders.includes(c.sound))
+    .sort((a, b) => motion(b) - motion(a) || a.start - b.start || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  for (const lead of candidates) {
+    const followers: PacePlan['followers'] = {};
+    for (const c of list) {
+      const follow = r.follow[c.sound];
+      if (c.id !== lead.id && follow && overlaps(c, lead)) followers[c.id] = { flatten: r.flatten, follow };
+    }
+    if (!Object.keys(followers).length) continue;
+    const times = breakpointTimes(lead, mix).filter(t => t >= 0 && t <= mix.lengthSec);
+    const all = [...new Set([0, ...times, mix.lengthSec])].sort((a, b) => a - b);
+    return { lead: lead.id, times: all, weight: all.map(t => Math.round(envelopeAt(lead, t, mix) * 1000) / 1000), followers, maxUp: r.maxUp, maxDown: r.maxDown };
+  }
+  return undefined;
 }
 
 /** A block's cut in dB at time t (seconds into one pass), linear between planned points. */

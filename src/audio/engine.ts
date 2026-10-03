@@ -1,4 +1,5 @@
 import { blendGainAt, planBlend, type BlendPlan } from '../core/blend';
+import { PACE_RATE, loopMotion, paceCurve, type PaceLoop } from '../core/pace';
 import { SOUNDS, levelGain, variantOf } from '../core/sounds';
 import { breakpointTimes, duckAt, envelopeAt, isQuiet, positionAt, quietBreakpointTimes } from '../core/timeline';
 import type { MixComponent, MixDraft } from '../core/types';
@@ -20,12 +21,14 @@ export interface SessionInfo {
 export interface Snapshot { status: Status; info: SessionInfo | null }
 
 interface Live {
-  voices: { id: string; sound: string; variant: string; node: AudioNode; stop: () => void; gain: GainNode; blend: GainNode }[];
+  voices: { id: string; sound: string; variant: string; node: AudioNode; stop: () => void; gain: GainNode; blend: GainNode; pace: GainNode; loop: VoiceLoop | null }[];
   bus: GainNode;
   session: GainNode;
   /** Context time at which elapsed === base. */
   anchor: number;
   base: number;
+  /** The pace plan last laid onto the clock, so level edits (which never change it) don't redo it. */
+  paceKey: string;
 }
 
 /** The recorded loop a block plays: its version's, or the original's if it plays the original. */
@@ -42,6 +45,9 @@ function scheduleBlend(param: AudioParam, plan: BlendPlan | null, c: MixComponen
   const times = plan?.voices[c.id]?.times ?? [0, mix.lengthSec];
   scheduleCurve(param, mix, start, offset, until, times, t => blendGainAt(plan, c.id, t), glide);
 }
+
+/** Where a recorded layer is: its file and loop, and where in the loop it is at elapsed time 0. */
+interface VoiceLoop { file: string; buffer: AudioBuffer; loopStart: number; loopEnd: number; period: number; phase: number }
 
 /** Scheduling horizon for "until stopped". Audio stays correct even if timers are throttled. */
 const HORIZON_SEC = 12 * 3600;
@@ -95,6 +101,8 @@ class AudioEngine {
   private snapshot: Snapshot = { status: 'idle', info: null };
   private volume = 0.8;
   private analyser: AnalyserNode | null = null;
+  /** Each recording's measured motion over one loop, for pace matching, by file. */
+  private motions = new Map<string, Float32Array>();
   private scope = new Float32Array(1024);
   private level = 0;
 
@@ -223,6 +231,53 @@ class AudioEngine {
     return pending;
   }
 
+  /** A recorded layer's slow level motion over its loop, measured once per file from the decoded audio. */
+  private paceLoop(loop: VoiceLoop): PaceLoop {
+    let motion = this.motions.get(loop.file);
+    if (!motion) {
+      const { buffer } = loop;
+      const sr = buffer.sampleRate;
+      const channels = Array.from({ length: buffer.numberOfChannels }, (_, i) => buffer.getChannelData(i));
+      motion = loopMotion(channels, sr, Math.round(loop.loopStart * sr), Math.min(buffer.length, Math.round(loop.loopEnd * sr)));
+      this.motions.set(loop.file, motion);
+    }
+    return { motion, period: loop.period, phase: loop.phase };
+  }
+
+  /**
+   * Lays each recording's pace adjustment (Auto-Blend v2) onto the audio clock as one value curve to the end of
+   * the session; a block that doesn't follow sits at exactly 1. With a glide it slides there from wherever it
+   * is, so turning Auto-Blend on or off mid-play never jumps. Motion is measured first (only for the layers
+   * taking part), and the curve is placed after that, never in the past: the browser would start a late curve
+   * late, out of step with the recordings.
+   */
+  private schedulePace(voices: Live['voices'], plan: BlendPlan | null, mix: MixDraft, start: number, offset: number, until: number, glide = 0) {
+    const pace = plan?.pace;
+    const leadVoice = pace ? voices.find(v => v.id === pace.lead) : undefined;
+    const lead = leadVoice?.loop ? this.paceLoop(leadVoice.loop) : null;
+    const own = new Map<string, PaceLoop>();
+    if (pace && lead) for (const v of voices) if (v.loop && pace.followers[v.id]) own.set(v.id, this.paceLoop(v.loop));
+    const now = this.ctx!.currentTime;
+    for (const v of voices) {
+      const param = v.pace.gain;
+      const from = param.value;
+      param.cancelScheduledValues(0);
+      const loop = own.get(v.id);
+      if (!pace || !lead || !loop) {
+        param.setValueAtTime(glide > 0 ? from : 1, start);
+        if (glide > 0) param.linearRampToValueAtTime(1, start + glide);
+        continue;
+      }
+      const settle = Math.max(start + glide, now + 0.02);
+      param.setValueAtTime(glide > 0 ? from : 1, Math.max(start, now + 0.01));
+      // The curve starts a hair after the glide, so it never shares a time with another event.
+      const at = settle + 0.005;
+      const values = paceCurve(pace, v.id, mix, lead, loop, offset + (at - start), Math.max(1, until - at));
+      param.linearRampToValueAtTime(values[0], settle);
+      param.setValueCurveAtTime(values, at, (values.length - 1) / PACE_RATE);
+    }
+  }
+
   async start(info: SessionInfo, offset = 0) {
     this.wake();
     const ctx = this.ctx!;
@@ -256,6 +311,7 @@ class AudioEngine {
       const seed = seedOf(`${info.sourceId}:${c.id}`);
       let node: AudioNode;
       let stop: () => void;
+      let loop: VoiceLoop | null = null;
       const recording = recordingOf(c);
       if (recording) {
         const buffer = buffers.get(recording.file);
@@ -270,6 +326,8 @@ class AudioEngine {
         const period = src.loopEnd - src.loopStart;
         const into = src.loopStart + (((seed / 4294967296) * period + offset) % period);
         src.start(start, into);
+        // Where this layer is in its loop at elapsed time 0, so its motion can be followed exactly.
+        loop = { file: recording.file, buffer, loopStart: src.loopStart, loopEnd: src.loopEnd, period, phase: (seed / 4294967296) * period };
         node = src;
         stop = () => {
           try { src.stop(); } catch { /* already stopped */ }
@@ -282,16 +340,19 @@ class AudioEngine {
         node = gen;
         stop = () => gen.port.postMessage('stop');
       }
-      // node → gain (fade × level) → blend (Auto-Blend's small cut and makeup) → bus (quiet sections).
+      // node → gain (fade × level) → blend (Auto-Blend's small cut and makeup) → pace (moving with the
+      // leading nature sound) → bus (quiet sections).
       const gain = ctx.createGain();
       gain.gain.value = 0;
       const blend = ctx.createGain();
-      node.connect(gain).connect(blend).connect(bus);
+      const pace = ctx.createGain();
+      node.connect(gain).connect(blend).connect(pace).connect(bus);
       const peak = levelGain(c.level) * (variant?.gain ?? def.gain);
       scheduleCurve(gain.gain, mix, start, offset, until, breakpointTimes(c, mix), t => envelopeAt(c, t, mix) * peak);
       scheduleBlend(blend.gain, plan, c, mix, start, offset, until);
-      voices.push({ id: c.id, sound: c.sound, variant: c.variant ?? '', node, stop, gain, blend });
+      voices.push({ id: c.id, sound: c.sound, variant: c.variant ?? '', node, stop, gain, blend, pace, loop });
     }
+    this.schedulePace(voices, plan, mix, start, offset, until);
     scheduleCurve(bus.gain, mix, start, offset, until, quietBreakpointTimes(mix), t => duckAt(mix, t));
 
     const s = session.gain;
@@ -303,7 +364,7 @@ class AudioEngine {
       s.linearRampToValueAtTime(0, until);
     }
 
-    this.live = { voices, bus, session, anchor: start, base: offset };
+    this.live = { voices, bus, session, anchor: start, base: offset, paceKey: JSON.stringify(plan?.pace ?? null) };
     clearInterval(this.timer);
     this.timer = window.setInterval(() => this.tick(), 500);
   }
@@ -333,6 +394,11 @@ class AudioEngine {
       scheduleBlend(live.voices[i].blend.gain, plan, c, mix, start, offset, until, BLEND_GLIDE_SEC);
     });
     scheduleCurve(live.bus.gain, mix, start, offset, until, quietBreakpointTimes(mix), t => duckAt(mix, t), glide);
+    const paceKey = JSON.stringify(plan?.pace ?? null);
+    if (paceKey !== live.paceKey) {
+      this.schedulePace(live.voices, plan, mix, start, offset, until, BLEND_GLIDE_SEC);
+      live.paceKey = paceKey;
+    }
     this.set('playing', { ...info, mix });
     return true;
   }
@@ -402,6 +468,7 @@ class AudioEngine {
         v.node.disconnect();
         v.gain.disconnect();
         v.blend.disconnect();
+        v.pace.disconnect();
       }
       live.bus.disconnect();
       live.session.disconnect();

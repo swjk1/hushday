@@ -26,7 +26,7 @@ export interface MixComponent {
 }
 
 /** Simpler alternative versions offered for some sounds, alongside the original. */
-export type VariantId = 'a' | 'b';
+export type VariantId = 'a' | 'b' | 'c' | 'd' | 'e';
 
 /** The audio package itself. Array order of components is the visual layer order. */
 export interface MixDraft {

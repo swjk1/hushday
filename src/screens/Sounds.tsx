@@ -1,6 +1,6 @@
 import { Glyph, Icon } from '../components/bits';
 import { SoundSwatch } from '../components/SoundSwatch';
-import { SOUNDS, SOUND_ORDER } from '../core/sounds';
+import { SOUNDS, SOUND_ORDER, variantMark } from '../core/sounds';
 import type { SoundId, VariantId } from '../core/types';
 import { engine } from '../audio/engine';
 import { audition, usePlayback } from '../state/playback';
@@ -34,7 +34,7 @@ export function Sounds() {
             <div className="sound-type">{def.family}</div>
             <SoundSwatch sound={s} level={quiet ? 0.9 : def.defaultLevel} animate={any} feather={!quiet} taper={quiet ? QUIET_TAPER : undefined} className="sound-card-texture" />
             {def.variants && (
-              <ul className="sound-versions" aria-label={`Simpler versions of ${def.name}`}>
+              <ul className="sound-versions" aria-label={`Other versions of ${def.name}`}>
                 {def.variants.map(v => {
                   const on = isOn(s, v.id);
                   return (
@@ -47,7 +47,7 @@ export function Sounds() {
                         <Icon name={on ? 'stop' : 'play'} size={11} />
                       </button>
                       <span className="sound-version-text">
-                        <span className="sound-version-name"><b>{v.id.toUpperCase()}</b> {v.label}</span>
+                        <span className="sound-version-name"><b>{variantMark(s, v.id)}</b> {v.label}</span>
                         <span className="sound-version-note">{v.note}</span>
                       </span>
                     </li>

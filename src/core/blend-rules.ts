@@ -1,4 +1,5 @@
 import { SOUND_DATA_V1, type VersionData } from './blend-data.js';
+import { SOUND_DATA_V2 } from './blend-data-v2.js';
 
 /**
  * Auto-Blend rules, one frozen set per version. A saved Mix plans with the version it was saved
@@ -35,7 +36,19 @@ export interface BlendRules {
   fundamentals: Record<string, number[]>;
   /** A hint appears when this many textures or bright layers overlap. */
   denseAt: number;
-  data: Record<string, VersionData>;
+  /** From v2: pace matching between nature recordings (see pace.ts). */
+  pace?: {
+    /** Sounds whose slow motion may set the pace; the one that moves most leads. */
+    leaders: string[];
+    /** How much of the leader's motion each sound takes on (0–1), by sound id. Sounds not listed don't follow. */
+    follow: Record<string, number>;
+    /** How much of a follower's own slow motion is evened out while it follows. */
+    flatten: number;
+    /** Bounds of the adjustment, in dB. */
+    maxUp: number;
+    maxDown: number;
+  };
+  data: Record<string, VersionData & { motion?: number }>;
 }
 
 export const RULES: Record<number, BlendRules> = {
@@ -72,6 +85,21 @@ export const RULES: Record<number, BlendRules> = {
     denseAt: 4,
     data: SOUND_DATA_V1,
   },
+};
+
+// v2: v1's balance unchanged, measured again on the current recordings, plus pace matching.
+RULES[2] = {
+  ...RULES[1],
+  pace: {
+    // The waves set the pace; without them, the gusts do.
+    leaders: ['ocean', 'wind'],
+    // Wind and a second Ocean ride the swell the most; steadier textures only lean into it.
+    follow: { ocean: 0.5, wind: 0.5, stream: 0.3, rain: 0.25, fire: 0.2, night: 0.15 },
+    flatten: 0.5,
+    maxUp: 1.5,
+    maxDown: -3,
+  },
+  data: SOUND_DATA_V2,
 };
 
 /** The rules for a saved version: that version, or the newest this app knows that is older. */

@@ -162,7 +162,7 @@ describe('recorded sounds', () => {
     const loops = [...recorded.map(s => s.sample!), ...recorded.flatMap(s => s.variants ?? []).map(v => v.sample)];
     expect(loops.every(Boolean)).toBe(true);
     for (const { file, loopStart, loopEnd, credit } of loops as NonNullable<(typeof loops)[number]>[]) {
-      expect(file).toMatch(/^sounds\/[a-z]+(-[ab])?\.mp3$/);
+      expect(file).toMatch(/^sounds\/[a-z]+(-[a-e])?\.mp3$/);
       expect(existsSync(new URL(`../../public/${file}`, import.meta.url))).toBe(true);
       // The wrap-around margin before loopStart is what keeps the seam clean.
       expect(loopStart).toBeGreaterThanOrEqual(0.25);
@@ -175,12 +175,12 @@ describe('recorded sounds', () => {
 describe('sound versions', () => {
   const withVariants = Object.values(SOUNDS).filter(s => s.variants);
 
-  it('offers simpler versions for ten sounds, each calibrated and described', () => {
-    // What was kept after listening: a second rain recording.
-    expect(withVariants.map(s => s.id).sort()).toEqual(['rain']);
+  it('offers other versions for rain, wind and stream, each calibrated and described', () => {
+    // A second rain kept after listening, and three more recordings each for Wind and Stream.
+    expect(withVariants.map(s => s.id).sort()).toEqual(['rain', 'stream', 'wind']);
     for (const s of withVariants) {
-      // The Hz tones keep their exact pitches, so they offer only A; everything else offers A and B.
-      expect(s.variants!.map(v => v.id)).toEqual(s.id === 'rain' ? ['b'] : ['a']);
+      // Wind and Stream skip 'a' and 'b': those ids belonged to retired versions and saved Mixes may still name them.
+      expect(s.variants!.map(v => v.id)).toEqual(s.id === 'rain' ? ['b'] : ['c', 'd', 'e']);
       if (s.freq) for (const v of s.variants!) expect(v.synth?.tone).toBe(s.freq);
       for (const v of s.variants!) {
         expect(v.gain).toBeGreaterThan(0);
@@ -201,6 +201,8 @@ describe('sound versions', () => {
     const original = { ...mix([{ ...c('rain', 0, 30, 0.6), variant: 'b' }, c('brown', 0, 30, 0.7)]), name: 'SHORE' };
     const back = decodeMix(encodeMix(original))!;
     expect(back.components.map(x => x.variant)).toEqual(['b', undefined]);
+    const later = { ...mix([{ ...c('wind', 0, 30, 0.6), variant: 'e' }, { ...c('stream', 0, 30, 0.6), variant: 'c' }]), name: 'GUST' };
+    expect(decodeMix(encodeMix(later))!.components.map(x => x.variant)).toEqual(['e', 'c']);
     // A Mix without versions encodes exactly as it did before versions existed.
     const plain = { ...mix([c('brown', 0, 30, 0.7)]), name: 'PLAIN' };
     const packed = JSON.parse(atob(encodeMix(plain).replace(/-/g, '+').replace(/_/g, '/')));

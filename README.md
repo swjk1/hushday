@@ -35,9 +35,15 @@ All six nature sounds play real recordings, public domain or CC0. Everything els
 | --- | --- | --- | --- | --- |
 | Rain | Original | [Rain falling on a canopy, Halenfeld, Germany](https://archive.org/details/aporee_23977_27849) | Matthes via Radio Aporee | Public Domain Mark |
 | Rain | B | [Heavy rain, Egå, Denmark](https://archive.org/details/aporee_58354_66946) | audiotraction via Radio Aporee | Public Domain Mark |
-| Ocean | Original | [Close waves, Klong Muang beach, Thailand](https://archive.org/details/aporee_47950_54511) | Felix Blume via Radio Aporee | Public Domain Mark |
-| Wind | Original | [Wind on a grove of reeds, Copenhagen](https://archive.org/details/aporee_14720_17165) | Alessandro Altavilla via Radio Aporee | Public Domain Mark |
+| Ocean | Original | [Close waves, Klong Muang beach, Thailand (spray and swell softened)](https://archive.org/details/aporee_47950_54511) | Felix Blume via Radio Aporee | Public Domain Mark |
+| Wind | Original | [Wind on a grove of reeds, Copenhagen (hiss, gusts and whistling softened)](https://archive.org/details/aporee_14720_17165) | Alessandro Altavilla via Radio Aporee | Public Domain Mark |
+| Wind | B | [In the wood very windy, Sälsten, Sweden (hiss and gusts softened)](https://archive.org/details/aporee_51051_58278) | a Radio Aporee recordist | Public Domain Mark |
+| Wind | C | [Lower Geyser Basin (Strong Wind), Yellowstone (gusts softened)](https://archive.org/details/nps-yell-sounds-soundscapes) | NPS/Peter Comley | Public Domain Mark |
+| Wind | D | [Howling Wind, Troon, Cornwall (howl and gusts softened)](https://archive.org/details/aporee_30717_35328) | djake via Radio Aporee | Public Domain Mark |
 | Stream | Original | [Creek, Boulder, Colorado (highs softened slightly)](https://archive.org/details/aporee_16764_19506) | daytondaft via Radio Aporee | Public Domain Mark |
+| Stream | B | [Stream Krčnik, Slovenia (highs softened slightly)](https://archive.org/details/aporee_50749_57876) | Bojan Marusic via Radio Aporee | Public Domain Mark |
+| Stream | C | [Brook among thawing snow, Alytus, Lithuania](https://archive.org/details/aporee_71794_83851) | Martynas Baranauskas via Radio Aporee | Public Domain Mark |
+| Stream | D | [Stream, Deguliai, Lithuania](https://archive.org/details/aporee_57345_65625) | alas23/sala via Radio Aporee | Public Domain Mark |
 | Fire | Original | [Fireplace](https://archive.org/details/FireFavorite) | inchadney | CC0 1.0 |
 | Night | Original | [Nighttime crickets, Les Cluses, France](https://archive.org/details/aporee_70514_82218) | Jillis Molenaar via Radio Aporee | Public Domain Mark |
 

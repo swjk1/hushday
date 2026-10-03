@@ -1,6 +1,6 @@
 import { Glyph, Icon } from '../../components/bits';
 import { SoundSwatch } from '../../components/SoundSwatch';
-import { SOUNDS, SOUND_ORDER, variantLabel, variantOf } from '../../core/sounds';
+import { SOUNDS, SOUND_ORDER, variantLabel, variantMark, variantOf } from '../../core/sounds';
 import { spanLabel } from '../../core/format';
 import type { MixComponent, SoundId } from '../../core/types';
 import { clickWasDrag, pressToDrag, useDrag, type DragState } from './drag';
@@ -114,7 +114,7 @@ export function BlockInspector({ blocks, lengthSec, onChange, onDuplicate, onDel
                 className={`toggle ${version === v.id ? 'on' : ''}`}
                 onClick={() => onChange(() => ({ variant: v.id || undefined }))}
               >
-                {v.id ? `${v.id.toUpperCase()} · ${v.label}` : 'Original'}
+                {v.id ? `${variantMark(first.sound, v.id)} · ${v.label}` : 'Original'}
               </button>
             ))}
           </div>
