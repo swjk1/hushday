@@ -204,6 +204,11 @@ export const BANDS: Record<Exclude<SoundId, 'quiet'>, Band> = {
       return c.off * 1.8 * (1 + open * 1.4) + Math.sin(u * TAU + t * 0.2) * c.h * 0.03 + dy;
     },
   },
+  // Long, gliding swells with a lift now and then, like gulls riding the wind over the water.
+  gulls: {
+    threads: 6,
+    y: (u, _i, _k, _n, t, c) => Math.sin(u * TAU * 1.5 - t * 0.5) * c.h * 0.16 + Math.sin(u * TAU * 4 + t * 1.1) * c.h * 0.05 * Math.sin(t * 0.3),
+  },
   // Two slow, still waves crossing into a chain of lenses: calm, regular, unhurried.
   zen: {
     threads: 7,

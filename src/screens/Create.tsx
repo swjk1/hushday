@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { engine } from '../audio/engine';
 import { Icon } from '../components/bits';
 import { PlayerCard } from '../components/PlayerCard';
-import { blendHints, planBlend, type BlendHint } from '../core/blend';
+import { blendHints, planBlend, usesAutoLevels, withAutoLevels, type BlendHint } from '../core/blend';
 import { BLEND_VERSION } from '../core/blend-version';
 import { SOUNDS } from '../core/sounds';
 import type { MixComponent, MixDraft, SoundId } from '../core/types';
@@ -33,6 +33,7 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
   const blocks = selected.map(id => draft.components.find(c => c.id === id)).filter((c): c is MixComponent => !!c);
   const audible = draft.components.some(c => SOUNDS[c.sound].category !== 'quiet');
   const blendOn = !!draft.blend?.on;
+  const autoVolumes = usesAutoLevels(draft);
   // Custom length: shown when chosen, or when the Mix already has a length outside the quick choices.
   const isCustom = !LENGTH_OPTIONS_MIN.includes(L / 60);
   const [customOpen, setCustomOpen] = useState(isCustom);
@@ -79,7 +80,8 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
   // Always derive from the latest draft: taps can land faster than React re-renders.
   const update = (change: Partial<MixDraft> | ((d: MixDraft) => Partial<MixDraft>)) => {
     setError(null);
-    setDraft(d => ({ ...d, ...(typeof change === 'function' ? change(d) : change) }));
+    // With Auto-Blend picking volumes, every change (a sound added, moved or removed, the toggle) re-balances them.
+    setDraft(d => withAutoLevels({ ...d, ...(typeof change === 'function' ? change(d) : change) }));
   };
   const removeBlock = (id: string) => {
     const c = draft.components.find(x => x.id === id);
@@ -258,7 +260,7 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
               </button>
             ))}
           </div>
-          <span className="blend-help">{blendOn ? `Small tested level adjustments so overlapping sounds fit together.${pace ? ` ${pace}` : ''}` : 'Every block plays exactly at its own level.'}</span>
+          <span className="blend-help">{blendOn ? `${autoVolumes ? 'Sets the volumes and keeps overlapping sounds balanced.' : 'Small tested level adjustments so overlapping sounds fit together.'}${pace ? ` ${pace}` : ''}` : 'Every block plays exactly at its own level.'}</span>
           <button className="text-btn" onClick={() => setOnboarding(true)}>How it works</button>
         </div>
 
@@ -293,6 +295,7 @@ export function Create({ mode, sourceId }: { mode: EditorMode; sourceId?: string
           <BlockInspector
             blocks={blocks}
             lengthSec={L}
+            autoVolumes={autoVolumes}
             onChange={patch => update(d => ({ components: d.components.map(c => (selected.includes(c.id) ? { ...c, ...patch(c) } : c)) }))}
             onDuplicate={() => duplicate(blocks[0].id)}
             onDelete={() => (blocks.length > 1 ? removeGroup(selected) : removeBlock(blocks[0].id))}

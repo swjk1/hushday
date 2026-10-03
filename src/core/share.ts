@@ -13,12 +13,12 @@ const VERSION = 1;
  * (validation swaps it for its replacement) and new sounds go on the end, so old links keep
  * decoding to the same Mix. Never reorder this list.
  */
-const SLOTS: string[] = ['brown', 'red', 'pink', 'white', 'hifreq', 'rain', 'ocean', 'wind', 'focus', 'quiet', 'tone432', 'tone528', 'fan', 'stream', 'fire', 'night', 'zen'];
+const SLOTS: string[] = ['brown', 'red', 'pink', 'white', 'hifreq', 'rain', 'ocean', 'wind', 'focus', 'quiet', 'tone432', 'tone528', 'fan', 'stream', 'fire', 'night', 'zen', 'gulls'];
 
-type Packed = [v: number, name: string, lengthMin: number, repeat: 0 | 1, parts: [sound: number, start: number, end: number, level: number, slow: 0 | 1, row?: number, variant?: number][], blend?: [on: 0 | 1, v: number]];
+type Packed = [v: number, name: string, lengthMin: number, repeat: 0 | 1, parts: [sound: number, start: number, end: number, level: number, slow: 0 | 1, row?: number, variant?: number, manual?: 1][], blend?: [on: 0 | 1, v: number]];
 
 /** Variant codes inside a part. Appended only when a block uses one, so older links stay short and older apps ignore it. */
-const VARIANT_CODES = ['', 'a', 'b', 'c', 'd', 'e'] as const;
+const VARIANT_CODES = ['', 'a', 'b', 'c', 'd', 'e', 'f'] as const;
 
 const toBase64Url = (text: string) => btoa(String.fromCharCode(...new TextEncoder().encode(text))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const fromBase64Url = (code: string) => {
@@ -31,7 +31,9 @@ export function encodeMix(mix: MixDraft): string {
     VERSION, mix.name, mix.lengthSec / 60, mix.repeat === 'sustain' ? 1 : 0,
     mix.components.map(c => {
       const part: Packed[4][number] = [SLOTS.indexOf(c.sound), Math.round(c.start / 10), Math.round(c.end / 10), Math.round(c.level * 100), c.entry === 'slow' ? 1 : 0, c.row ?? 0];
-      if (c.variant) part.push(VARIANT_CODES.indexOf(c.variant));
+      if (c.variant || c.manual) part.push(c.variant ? VARIANT_CODES.indexOf(c.variant) : 0);
+      // A volume set by hand under Auto-Blend rides along as an eighth element; older apps ignore it.
+      if (c.manual) part.push(1);
       return part;
     }),
   ];
@@ -48,8 +50,9 @@ export function decodeMix(code: string): MixDraft | null {
     return sanitizeDraft({
       name, lengthSec: lengthMin * 60, repeat: repeat ? 'sustain' : 'loop', parentMixId: null,
       blend: Array.isArray(blend) ? { on: blend[0] === 1, v: blend[1] } : undefined,
-      components: parts.map(([s, start, end, level, slow, row, variant], i) => ({
+      components: parts.map(([s, start, end, level, slow, row, variant, manual], i) => ({
         variant: variant ? VARIANT_CODES[variant] || undefined : undefined,
+        manual: manual === 1 ? true : undefined,
         id: `s${i}`, sound: SLOTS[s], start: start * 10, end: end * 10, level: level / 100, entry: slow ? 'slow' : 'soft', row: row ?? i,
       })),
     });

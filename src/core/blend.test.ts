@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { blendDbAt, blendGainAt, blendHints, planBlend } from './blend.js';
+import { autoLevels, blendDbAt, blendGainAt, blendHints, planBlend, withAutoLevels } from './blend.js';
+import { RULES } from './blend-rules.js';
 import { PACE_RATE, loopMotion, motionAt, motionDepth, paceCurve, paceDbAt, paceWeightAt } from './pace.js';
 import { BLEND_VERSION } from './blend-version.js';
 import { CURATED_MIXES } from './catalog.js';
 import { canonicalize } from './fingerprint.js';
 import { decodeMix, encodeMix } from './share.js';
-import { SOUND_ORDER } from './sounds.js';
+import { SOUNDS, SOUND_ORDER } from './sounds.js';
 import type { MixComponent, MixDraft, SoundId } from './types.js';
 import { envelopeAt } from './timeline.js';
 import { sanitizeDraft } from './validate.js';
@@ -25,7 +26,8 @@ function rng(seed: number) {
 }
 
 describe('Auto-Blend planner', () => {
-  // A Mix holds at most eight blocks, so this is every combination of the 15 sounds that can actually be made.
+  // A Mix holds at most eight blocks, so this is every combination of the 16 sounds that can actually be made.
+  // Exhaustive, so it runs longer than the default time limit.
   it('stays small and only cuts, across every combination of up to eight sounds', () => {
     let checked = 0;
     for (let mask = 1; mask < 1 << audible.length; mask++) {
@@ -47,8 +49,8 @@ describe('Auto-Blend planner', () => {
       }
       checked++;
     }
-    expect(checked).toBe(22818);
-  });
+    expect(checked).toBe(39202);
+  }, 60_000);
 
   it('never reads levels: any slider setting gives exactly the same plan', () => {
     const r = rng(7);
@@ -77,6 +79,7 @@ describe('Auto-Blend planner', () => {
     expect(blendDbAt(plan, 'brown', 600)).toBe(0);
   });
 
+  // Exhaustive, so it runs longer than the default time limit.
   it('moves slowly and meets itself at the loop point', () => {
     const r = rng(11);
     for (let n = 0; n < 60; n++) {
@@ -107,7 +110,7 @@ describe('Auto-Blend planner', () => {
         }
       }
     }
-  });
+  }, 60_000);
 
   it('balances a bed, a texture and a second bed the way the rules describe', () => {
     const plan = planBlend(mixOf([block('brown', 0, 30), block('rain', 0, 30), block('ocean', 0, 30)]))!;
@@ -243,5 +246,75 @@ describe('Auto-Blend pace matching (v2)', () => {
     expect(paceDbAt(pace, 'brown', mix, lead, own, 600)).toBe(0);
     // With the waves in, the wind leans into them.
     expect(Math.max(...curve)).toBeGreaterThan(Math.pow(10, 0.5 / 20));
+  });
+});
+
+describe('Auto-Blend volumes (v3)', () => {
+  const lufsOf = (s: SoundId) => RULES[3].data[s].lufs;
+  // Loudness of blocks at given levels, relative to each sound's default (level^1.7 amplitude).
+  const powerAt = (c: MixComponent, level: number) => Math.pow(10, lufsOf(c.sound) / 10) * Math.pow(level / SOUNDS[c.sound].defaultLevel, 3.4);
+
+  it('only picks volumes when Auto-Blend is on with v3 rules', () => {
+    const comps = [block('brown', 0, 30), block('rain', 0, 30)];
+    expect(autoLevels({ ...mixOf(comps), blend: { on: true, v: 2 } })).toBeNull();
+    expect(autoLevels({ ...mixOf(comps), blend: { on: false, v: 3 } })).toBeNull();
+    expect(autoLevels(mixOf(comps))).not.toBeNull();
+  });
+
+  it('leaves a sound on its own at its tuned default, whatever its slider said', () => {
+    expect(autoLevels(mixOf([block('rain', 0, 30, 'r', { level: 0.95 })]))).toEqual({ r: SOUNDS.rain.defaultLevel });
+    // Blocks that never overlap each keep their default too.
+    expect(autoLevels(mixOf([block('brown', 0, 10), block('ocean', 15, 30)]))).toEqual({ brown: SOUNDS.brown.defaultLevel, ocean: SOUNDS.ocean.defaultLevel });
+  });
+
+  it('turns a stack down together, so it is about as loud as its loudest sound plus a little', () => {
+    const comps = [block('brown', 0, 30), block('rain', 0, 30), block('ocean', 0, 30)];
+    const levels = autoLevels(mixOf(comps))!;
+    for (const c of comps) expect(levels[c.id]).toBeLessThan(SOUNDS[c.sound].defaultLevel);
+    const total = comps.reduce((s, c) => s + powerAt(c, levels[c.id]), 0);
+    const loudest = Math.max(...comps.map(c => powerAt(c, SOUNDS[c.sound].defaultLevel)));
+    // Rounding the sliders to whole percent moves this a few tenths of a dB.
+    expect(Math.abs(10 * Math.log10(total / loudest) - 1.5)).toBeLessThan(0.4);
+  });
+
+  it('never depends on the sliders of the blocks it controls, or on order', () => {
+    const comps = [block('wind', 0, 30), block('stream', 5, 25), block('fire', 0, 20)];
+    const rand = rng(11);
+    const a = autoLevels(mixOf(comps));
+    expect(autoLevels(mixOf([...comps].reverse().map(c => ({ ...c, level: 0.05 + rand() * 0.95 }))))).toEqual(a);
+  });
+
+  it('keeps a volume set by hand and balances the rest around it', () => {
+    const stack = (brown: Partial<MixComponent>) => autoLevels(mixOf([block('brown', 0, 30, 'b', brown), block('rain', 0, 30), block('ocean', 0, 30)]))!;
+    const allAuto = stack({});
+    const held = stack({ level: SOUNDS.brown.defaultLevel, manual: true });
+    // A block set by hand is never changed; held at full level, it leaves the others to make all the room.
+    expect(held.b).toBeUndefined();
+    expect(held.rain).toBeLessThan(allAuto.rain);
+    expect(held.ocean).toBeLessThan(allAuto.ocean);
+    // Turned right down by hand, it barely counts, so the others come back up.
+    const low = stack({ level: 0.1, manual: true });
+    expect(low.rain).toBeGreaterThan(held.rain);
+    expect(Math.min(...Object.values(held))).toBeGreaterThanOrEqual(0.05);
+  });
+
+  it('writes its volumes into the Mix, leaves Quiet alone, and settles at once', () => {
+    const mix = mixOf([block('brown', 0, 30, 'b', { level: 0.9 }), block('rain', 0, 30, 'r', { level: 0.1 }), block('quiet', 10, 12, 'q', { level: 0.7 })]);
+    const once = withAutoLevels(mix);
+    expect(once.components.find(c => c.id === 'q')!.level).toBe(0.7);
+    expect(once.components.find(c => c.id === 'b')!.level).not.toBe(0.9);
+    expect(withAutoLevels(once)).toBe(once);
+    // Original keeps every slider exactly as it is.
+    const original = { ...mix, blend: { on: false, v: 3 } };
+    expect(withAutoLevels(original)).toBe(original);
+  });
+
+  it('keeps the hand-set mark through saving and share links', () => {
+    const mix = { ...mixOf([block('rain', 0, 30, 'r', { level: 0.3, manual: true }), block('wind', 0, 30, 'w', { variant: 'c', manual: true }), block('brown', 0, 30)]), name: 'HAND', parentMixId: null };
+    const clean = sanitizeDraft(mix);
+    expect(clean.components.map(c => c.manual)).toEqual([true, true, undefined]);
+    expect(sanitizeDraft({ ...mix, components: [{ ...mix.components[0], manual: 'yes' }] }).components[0].manual).toBeUndefined();
+    const back = decodeMix(encodeMix(clean))!;
+    expect(back.components.map(c => [c.manual, c.variant])).toEqual([[true, undefined], [true, 'c'], [undefined, undefined]]);
   });
 });

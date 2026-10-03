@@ -162,12 +162,12 @@ describe('recorded sounds', () => {
     const loops = [...recorded.map(s => s.sample!), ...recorded.flatMap(s => s.variants ?? []).map(v => v.sample)];
     expect(loops.every(Boolean)).toBe(true);
     for (const { file, loopStart, loopEnd, credit } of loops as NonNullable<(typeof loops)[number]>[]) {
-      expect(file).toMatch(/^sounds\/[a-z]+(-[a-e])?\.mp3$/);
+      expect(file).toMatch(/^sounds\/[a-z]+(-[a-z]+)?\.mp3$/);
       expect(existsSync(new URL(`../../public/${file}`, import.meta.url))).toBe(true);
       // The wrap-around margin before loopStart is what keeps the seam clean.
       expect(loopStart).toBeGreaterThanOrEqual(0.25);
       expect(loopEnd - loopStart).toBeGreaterThan(30);
-      expect(credit).toMatch(/Public Domain Mark|CC0/);
+      expect(credit).toMatch(/Public Domain Mark|CC0|CC BY 4\.0/);
     }
   });
 });
@@ -175,12 +175,13 @@ describe('recorded sounds', () => {
 describe('sound versions', () => {
   const withVariants = Object.values(SOUNDS).filter(s => s.variants);
 
-  it('offers other versions for rain, wind and stream, each calibrated and described', () => {
-    // A second rain kept after listening, and three more recordings each for Wind and Stream.
-    expect(withVariants.map(s => s.id).sort()).toEqual(['rain', 'stream', 'wind']);
+  it('offers other versions for six nature sounds, each calibrated and described', () => {
+    // Each sound's previous original stays on as version f (listed first); Rain has a second recording, and Wind
+    // and Stream more. Ids are never reused: a and b were retired, and Stream's e became its original.
+    expect(withVariants.map(s => s.id).sort()).toEqual(['fire', 'night', 'ocean', 'rain', 'stream', 'wind']);
+    const ids: Record<string, string[]> = { rain: ['b'], wind: ['f', 'c', 'd', 'e'], stream: ['f', 'c', 'd'], ocean: ['f'], fire: ['f'], night: ['f'] };
     for (const s of withVariants) {
-      // Wind and Stream skip 'a' and 'b': those ids belonged to retired versions and saved Mixes may still name them.
-      expect(s.variants!.map(v => v.id)).toEqual(s.id === 'rain' ? ['b'] : ['c', 'd', 'e']);
+      expect(s.variants!.map(v => v.id)).toEqual(ids[s.id]);
       if (s.freq) for (const v of s.variants!) expect(v.synth?.tone).toBe(s.freq);
       for (const v of s.variants!) {
         expect(v.gain).toBeGreaterThan(0);

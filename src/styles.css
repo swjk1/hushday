@@ -499,3 +499,20 @@ input[type='range'] { accent-color: var(--c, #cde1ad); }
 .custom-length .text-input[aria-invalid="true"] { border-color: var(--danger); }
 .custom-length-help { font-size: 11px; color: var(--muted); }
 .custom-length-help.invalid { color: var(--danger); }
+
+/* Who set a block's volume under Auto-Blend */
+.level-owner {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--line);
+}
+.level-owner.auto { color: var(--sage); }
+.level-owner.yours { color: var(--muted); }
+.level-reset { display: block; margin: -4px auto 10px 0; padding: 4px 0; font-size: 12px; }
+
+/* Who recorded each sound, and under which licence */
+.sound-credit { display: block; margin: 4px 0 0; font-size: 10.5px; line-height: 1.35; color: var(--muted); overflow-wrap: anywhere; }

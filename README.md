@@ -6,7 +6,7 @@ Useful sound without managing your life around an app. Pick a **Mix**, choose ho
 
 | Concept | What it is | Where |
 | --- | --- | --- |
-| Mix | The audio package: sound blocks (brown, red, pink, white, 432 Hz and 528 Hz tones, fan, rain, ocean, wind, stream, fire, night, focus audio, zen, quiet) on track rows over time. Blocks that overlap play together | `src/core/types.ts` |
+| Mix | The audio package: sound blocks (brown, red, pink, white, 432 Hz and 528 Hz tones, fan, rain, ocean, wind, stream, fire, night, seagulls, focus audio, zen, quiet) on track rows over time. Blocks that overlap play together | `src/core/types.ts` |
 | Zone | A session that runs a Mix for 30m / 1h / 2h / 3h / until stopped. Loops or holds the Mix internally; cycles are never shown | `src/state/playback.ts`, `api/zones.ts` |
 | ShortExperience | The instant format, currently branded "Shot". Rename via `SHORT_FORMAT_NAME` in `src/core/catalog.ts` | `src/core/catalog.ts` |
 | Discovery | Each saved Mix is normalised into a fingerprint. First person to reach it gets FIRST DISCOVERY, later people get #N | `src/core/fingerprint.ts`, `server/mixes.ts` |
@@ -29,23 +29,28 @@ A Mix reduces to: repeat mode, length bucket (≤15 / ≤35 / ≤70 / longer min
 
 ## Recordings
 
-All six nature sounds play real recordings, public domain or CC0. Everything else is synthesised. The loops live in `public/sounds/`. Each was prepared by taking the steadiest stretch of the recording, evening out slow level drift, crossfading the end into the start, and easing down the rarest loud peaks. Each file wraps half a second of its own loop onto both edges, so the loop points in `src/core/sounds.ts` stay seamless if an MP3 decoder shifts timing slightly.
+All seven nature sounds play real recordings: public domain, CC0, or CC BY 4.0. The CC BY recordings are credited in the app, on the Sounds page, with their licence and what was changed. Everything else is synthesised. The loops live in `public/sounds/`. Each is the original recording, untouched apart from choosing a stretch, cutting out stray sounds where noted, crossfading the end into the start, and one fixed volume change. Each file wraps half a second of its own loop onto both edges, so the loop points in `src/core/sounds.ts` stay seamless if an MP3 decoder shifts timing slightly.
 
 | Sound | Version | Recording | By | Licence |
 | --- | --- | --- | --- | --- |
 | Rain | Original | [Rain falling on a canopy, Halenfeld, Germany](https://archive.org/details/aporee_23977_27849) | Matthes via Radio Aporee | Public Domain Mark |
 | Rain | B | [Heavy rain, Egå, Denmark](https://archive.org/details/aporee_58354_66946) | audiotraction via Radio Aporee | Public Domain Mark |
-| Ocean | Original | [Close waves, Klong Muang beach, Thailand (spray and swell softened)](https://archive.org/details/aporee_47950_54511) | Felix Blume via Radio Aporee | Public Domain Mark |
-| Wind | Original | [Wind on a grove of reeds, Copenhagen (hiss, gusts and whistling softened)](https://archive.org/details/aporee_14720_17165) | Alessandro Altavilla via Radio Aporee | Public Domain Mark |
-| Wind | B | [In the wood very windy, Sälsten, Sweden (hiss and gusts softened)](https://archive.org/details/aporee_51051_58278) | a Radio Aporee recordist | Public Domain Mark |
-| Wind | C | [Lower Geyser Basin (Strong Wind), Yellowstone (gusts softened)](https://archive.org/details/nps-yell-sounds-soundscapes) | NPS/Peter Comley | Public Domain Mark |
-| Wind | D | [Howling Wind, Troon, Cornwall (howl and gusts softened)](https://archive.org/details/aporee_30717_35328) | djake via Radio Aporee | Public Domain Mark |
-| Stream | Original | [Creek, Boulder, Colorado (highs softened slightly)](https://archive.org/details/aporee_16764_19506) | daytondaft via Radio Aporee | Public Domain Mark |
-| Stream | B | [Stream Krčnik, Slovenia (highs softened slightly)](https://archive.org/details/aporee_50749_57876) | Bojan Marusic via Radio Aporee | Public Domain Mark |
-| Stream | C | [Brook among thawing snow, Alytus, Lithuania](https://archive.org/details/aporee_71794_83851) | Martynas Baranauskas via Radio Aporee | Public Domain Mark |
-| Stream | D | [Stream, Deguliai, Lithuania](https://archive.org/details/aporee_57345_65625) | alas23/sala via Radio Aporee | Public Domain Mark |
-| Fire | Original | [Fireplace](https://archive.org/details/FireFavorite) | inchadney | CC0 1.0 |
-| Night | Original | [Nighttime crickets, Les Cluses, France](https://archive.org/details/aporee_70514_82218) | Jillis Molenaar via Radio Aporee | Public Domain Mark |
+| Ocean | Original | [Ocean Waves](https://freesound.org/s/531015/) | Noted451 via Freesound | CC0 1.0 |
+| Ocean | B | [Close waves, Klong Muang beach, Thailand](https://archive.org/details/aporee_47950_54511) | Felix Blume via Radio Aporee | Public Domain Mark |
+| Wind | Original | [Autumn wind and dry leaves](https://freesound.org/s/457318/) | Stek59 via Freesound | CC0 1.0 |
+| Wind | B | [Wind on a grove of reeds, Copenhagen](https://archive.org/details/aporee_14720_17165) | Alessandro Altavilla via Radio Aporee | Public Domain Mark |
+| Wind | C | [In the wood very windy, Sälsten, Sweden](https://archive.org/details/aporee_51051_58278) | a Radio Aporee recordist | Public Domain Mark |
+| Wind | D | [Lower Geyser Basin (Strong Wind), Yellowstone](https://archive.org/details/nps-yell-sounds-soundscapes) | NPS/Peter Comley | Public Domain Mark |
+| Wind | E | [Howling Wind, Troon, Cornwall](https://archive.org/details/aporee_30717_35328) | djake via Radio Aporee | Public Domain Mark |
+| Stream | Original | [Stream River Water Up Close (a man talking and a passing hum cut out)](https://freesound.org/s/433589/) | jackthemurray via Freesound | CC0 1.0 |
+| Stream | B | [Creek, Boulder, Colorado](https://archive.org/details/aporee_16764_19506) | daytondaft via Radio Aporee | Public Domain Mark |
+| Stream | C | [Stream Krčnik, Slovenia](https://archive.org/details/aporee_50749_57876) | Bojan Marusic via Radio Aporee | Public Domain Mark |
+| Stream | D | [Brook among thawing snow, Alytus, Lithuania](https://archive.org/details/aporee_71794_83851) | Martynas Baranauskas via Radio Aporee | Public Domain Mark |
+| Fire | Original | [chimney fire](https://freesound.org/s/18766/) | reinsamba via Freesound | CC BY 4.0 |
+| Fire | B | [Fireplace](https://archive.org/details/FireFavorite) | inchadney | CC0 1.0 |
+| Night | Original | [Crickets in the night, Laos (one brief call cut out)](https://freesound.org/s/221164/) | caquet via Freesound | CC BY 4.0 |
+| Night | B | [Nighttime crickets, Les Cluses, France](https://archive.org/details/aporee_70514_82218) | Jillis Molenaar via Radio Aporee | Public Domain Mark |
+| Seagulls | Original | [seagulls, Scheveningen, the Netherlands](https://freesound.org/s/144835/) | Eelke via Freesound | CC BY 4.0 |
 
 ## Run
 

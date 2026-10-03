@@ -1,7 +1,7 @@
 // Platform-independent product model. Nothing in src/core may touch the DOM or Node APIs,
 // so the same rules run in the browser, in Vercel Functions, and later in a native app.
 
-export type SoundId = 'brown' | 'red' | 'pink' | 'white' | 'tone432' | 'tone528' | 'fan' | 'rain' | 'ocean' | 'wind' | 'stream' | 'fire' | 'night' | 'focus' | 'zen' | 'quiet';
+export type SoundId = 'brown' | 'red' | 'pink' | 'white' | 'tone432' | 'tone528' | 'fan' | 'rain' | 'ocean' | 'wind' | 'stream' | 'fire' | 'night' | 'gulls' | 'focus' | 'zen' | 'quiet';
 export type SoundCategory = 'continuous' | 'functional' | 'quiet';
 
 /** How a component arrives. "slow" is the long swell used for things like rain slowly entering. */
@@ -23,10 +23,12 @@ export interface MixComponent {
   row?: number;
   /** Which version of the sound plays. Absent means the original. */
   variant?: VariantId;
+  /** Auto-Blend v3 sets every block's volume; true means this one was set by hand and Auto-Blend leaves it alone. */
+  manual?: true;
 }
 
 /** Simpler alternative versions offered for some sounds, alongside the original. */
-export type VariantId = 'a' | 'b' | 'c' | 'd' | 'e';
+export type VariantId = 'a' | 'b' | 'c' | 'd' | 'e' | 'f';
 
 /** The audio package itself. Array order of components is the visual layer order. */
 export interface MixDraft {

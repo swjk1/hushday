@@ -1,4 +1,5 @@
 import { rulesFor, type BlendRules, type Role } from './blend-rules.js';
+import { SOUNDS, levelGain } from './sounds.js';
 import { breakpointTimes, envelopeAt, isQuiet } from './timeline.js';
 import type { MixComponent, MixDraft } from './types.js';
 
@@ -64,6 +65,12 @@ function members(mix: MixDraft) {
 
 function roleOf(rules: BlendRules, c: MixComponent): Role {
   return rules.roles[versionKey(c)] ?? rules.roles[c.sound] ?? 'texture';
+}
+
+/** A block's loudness at its sound's default level, as a power. */
+function power0(rules: BlendRules, c: MixComponent) {
+  const d = rules.data[versionKey(c)] ?? rules.data[c.sound];
+  return Math.pow(10, (d?.lufs ?? -24) / 10);
 }
 
 function power(rules: BlendRules, c: MixComponent) {
@@ -234,6 +241,70 @@ export function blendGainAt(plan: BlendPlan | null, id: string, t: number): numb
   if (!plan) return 1;
   const ceiling = plan.voices[id]?.ceiling ?? 0;
   return Math.pow(10, Math.min(ceiling, blendDbAt(plan, id, t) + plan.makeupDb) / 20);
+}
+
+/** True when Auto-Blend picks this Mix's volumes (on, with rules v3 or later). */
+export function usesAutoLevels(mix: MixDraft): boolean {
+  return !!mix.blend?.on && !!rulesFor(mix.blend.v).autoLevels;
+}
+
+/**
+ * The volume Auto-Blend gives each block it controls (every audible block not set by hand), or null when it
+ * doesn't pick volumes for this Mix.
+ *
+ * Every block starts at its sound's tuned default level, which is how loud that sound was made to sit on its
+ * own. Then, at each moment, the blocks Auto-Blend controls are turned down together until the whole stack is
+ * no louder than its loudest single sound plus a little headroom, so adding a layer adds richness rather than
+ * volume. A block keeps one steady volume, the one its busiest moment needs. Blocks set by hand count with the
+ * loudness they actually have and are never changed.
+ */
+export function autoLevels(mix: MixDraft): Record<string, number> | null {
+  if (!usesAutoLevels(mix)) return null;
+  const rules = rulesFor(mix.blend!.v);
+  const { headroom, floor } = rules.autoLevels!;
+  const list = mix.components.filter(c => !isQuiet(c) && (!c.manual || c.level >= 0.05));
+  const auto = list.map(c => !c.manual);
+  // Loudness of each block as it will sound before the auto turn-down: auto blocks at their default level,
+  // blocks set by hand at their own.
+  const power = list.map((c, j) => {
+    const p = power0(rules, c);
+    if (auto[j]) return p;
+    const ratio = levelGain(c.level) / levelGain(SOUNDS[c.sound].defaultLevel);
+    return p * ratio * ratio;
+  });
+  const times = sampleTimes(mix, list);
+  const scale = list.map(() => 1);
+  const headroomP = Math.pow(10, headroom / 10);
+  const floorP = Math.pow(10, floor / 10);
+  for (const t of times) {
+    const env = list.map(c => envelopeAt(c, t, mix));
+    let manual = 0, controlled = 0, loudest = 0;
+    list.forEach((_, j) => {
+      const e = env[j] * env[j] * power[j];
+      loudest = Math.max(loudest, e);
+      if (auto[j]) controlled += e; else manual += e;
+    });
+    if (controlled <= 0) continue;
+    const room = loudest * headroomP - manual;
+    const k = Math.min(1, Math.max(floorP, room / controlled));
+    // Only the moments a block is substantially there decide its volume, not the edges of its fades.
+    list.forEach((_, j) => { if (auto[j] && env[j] >= 0.5) scale[j] = Math.min(scale[j], k); });
+  }
+  const out: Record<string, number> = {};
+  list.forEach((c, j) => {
+    if (!auto[j]) return;
+    // A power ratio back to the slider: amplitude is level^1.7, power its square.
+    const level = SOUNDS[c.sound].defaultLevel * Math.pow(scale[j], 1 / 3.4);
+    out[c.id] = Math.min(1, Math.max(0.05, Math.round(level * 100) / 100));
+  });
+  return out;
+}
+
+/** The Mix with Auto-Blend's volumes written into the blocks it controls; the same object when nothing changes. */
+export function withAutoLevels(mix: MixDraft): MixDraft {
+  const levels = autoLevels(mix);
+  if (!levels || mix.components.every(c => levels[c.id] === undefined || levels[c.id] === c.level)) return mix;
+  return { ...mix, components: mix.components.map(c => (levels[c.id] === undefined ? c : { ...c, level: levels[c.id] })) };
 }
 
 /** Simple-ratio intervals (octaves folded away) that sit well together. */

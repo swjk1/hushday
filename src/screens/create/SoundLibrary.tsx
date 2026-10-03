@@ -52,6 +52,8 @@ interface InspectorProps {
   /** Everything selected: one block from a chip, or a whole braid from its body. */
   blocks: MixComponent[];
   lengthSec: number;
+  /** Auto-Blend is picking volumes: moving a volume takes that block over by hand. */
+  autoVolumes?: boolean;
   /** Applied to every selected block; the function sees each block so relative values can be kept. */
   onChange: (patch: (c: MixComponent) => Partial<MixComponent>) => void;
   onDuplicate: () => void;
@@ -65,13 +67,15 @@ const clampLevel = (v: number) => Math.min(1, Math.max(0.05, Math.round(v * 100)
  * Settings for the selection. With a braid selected, volume moves every block together,
  * keeping their balance, and Delete removes them all.
  */
-export function BlockInspector({ blocks, lengthSec, onChange, onDuplicate, onDelete, onClose }: InspectorProps) {
+export function BlockInspector({ blocks, lengthSec, autoVolumes = false, onChange, onDuplicate, onDelete, onClose }: InspectorProps) {
   const many = blocks.length > 1;
   const first = blocks[0];
   const def = SOUNDS[first.sound];
   const quiet = blocks.every(b => SOUNDS[b.sound].category === 'quiet');
   const level = blocks.reduce((s, b) => s + b.level, 0) / blocks.length;
   const slow = blocks.every(b => b.entry === 'slow');
+  // Under Auto-Blend's volumes: Auto when every selected block is Auto-Blend's, Yours when any was set by hand.
+  const levelOwner = !autoVolumes || quiet ? null : blocks.some(b => b.manual) ? 'yours' : 'auto';
   const start = Math.min(...blocks.map(b => b.start));
   const end = Math.max(...blocks.map(b => b.end));
   const title = many ? blocks.map(b => SOUNDS[b.sound].label).join(' + ') : def.name;
@@ -92,17 +96,26 @@ export function BlockInspector({ blocks, lengthSec, onChange, onDuplicate, onDel
         <button className="icon-btn" onClick={onClose} aria-label="Close block settings"><Icon name="close" size={16} /></button>
       </div>
       <label className="level">
-        <span className="mono muted">{quiet ? 'Depth' : many ? 'Volume, all' : 'Volume'}</span>
+        <span className="mono muted">
+          {quiet ? 'Depth' : many ? 'Volume, all' : 'Volume'}
+          {levelOwner && <span className={`level-owner ${levelOwner}`}>{levelOwner === 'auto' ? 'Auto' : 'Yours'}</span>}
+        </span>
         <input
           type="range" min={0.05} max={1} step={0.01} value={level}
           onChange={e => {
             const delta = Number(e.target.value) - level;
-            onChange(c => ({ level: clampLevel(c.level + delta) }));
+            // Under Auto-Blend's volumes, setting one by hand keeps it: Auto-Blend balances the rest around it.
+            onChange(c => ({ level: clampLevel(c.level + delta), ...(levelOwner ? { manual: true as const } : {}) }));
           }}
           aria-label={`${title} ${quiet ? 'depth' : 'volume'}`}
         />
         <span className="mono muted inspector-pct">{Math.round(level * 100)}</span>
       </label>
+      {levelOwner === 'yours' && (
+        <button className="text-btn level-reset" onClick={() => onChange(() => ({ manual: undefined }))}>
+          Back to auto
+        </button>
+      )}
       {variants && (
         <>
           <div className="version-pills" role="radiogroup" aria-label={`${def.name} version`}>

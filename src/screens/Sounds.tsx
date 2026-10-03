@@ -33,6 +33,7 @@ export function Sounds() {
             <h3>{def.label}</h3>
             <div className="sound-type">{def.family}</div>
             <SoundSwatch sound={s} level={quiet ? 0.9 : def.defaultLevel} animate={any} feather={!quiet} taper={quiet ? QUIET_TAPER : undefined} className="sound-card-texture" />
+            {def.sample && <p className="sound-credit">{def.variants ? 'A · ' : ''}{def.sample.credit}</p>}
             {def.variants && (
               <ul className="sound-versions" aria-label={`Other versions of ${def.name}`}>
                 {def.variants.map(v => {
@@ -49,6 +50,7 @@ export function Sounds() {
                       <span className="sound-version-text">
                         <span className="sound-version-name"><b>{variantMark(s, v.id)}</b> {v.label}</span>
                         <span className="sound-version-note">{v.note}</span>
+                        {v.sample && <span className="sound-credit">{v.sample.credit}</span>}
                       </span>
                     </li>
                   );

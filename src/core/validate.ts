@@ -53,7 +53,7 @@ export function sanitizeDraft(input: unknown): MixDraft {
     const row = Number.isInteger(c.row) ? Math.min(MAX_COMPONENTS - 1, Math.max(0, c.row as number)) : index;
     // Keep a variant only if this sound actually offers it; anything else plays the original.
     const variant = SOUNDS[sound as MixComponent['sound']].variants?.find(v => v.id === c.variant)?.id;
-    return { id, sound: sound as MixComponent['sound'], start, end, level, entry: c.entry === 'slow' ? 'slow' : 'soft', row, ...(variant ? { variant } : {}) };
+    return { id, sound: sound as MixComponent['sound'], start, end, level, entry: c.entry === 'slow' ? 'slow' : 'soft', row, ...(variant ? { variant } : {}), ...(c.manual === true ? { manual: true as const } : {}) };
   });
 
   if (!components.some(c => SOUNDS[c.sound].category !== 'quiet' && c.level >= 0.05)) fail('Add a sound you can hear');

@@ -1,5 +1,6 @@
 import { SOUND_DATA_V1, type VersionData } from './blend-data.js';
 import { SOUND_DATA_V2 } from './blend-data-v2.js';
+import { SOUND_DATA_V3 } from './blend-data-v3.js';
 
 /**
  * Auto-Blend rules, one frozen set per version. A saved Mix plans with the version it was saved
@@ -48,6 +49,10 @@ export interface BlendRules {
     maxUp: number;
     maxDown: number;
   };
+  /** From v3: Auto-Blend sets the volumes. Every block starts at its sound's tuned default level, and where
+   * blocks overlap they are turned down together so the stack sounds no louder than its loudest sound plus
+   * headroom dB. A block is never raised above its default, nor taken more than floor dB below it. */
+  autoLevels?: { headroom: number; floor: number };
   data: Record<string, VersionData & { motion?: number }>;
 }
 
@@ -100,6 +105,14 @@ RULES[2] = {
     maxDown: -3,
   },
   data: SOUND_DATA_V2,
+};
+
+// v3: v2 unchanged, and Auto-Blend sets the volumes too (a block set by hand keeps its own).
+RULES[3] = {
+  ...RULES[2],
+  roles: { ...RULES[2].roles, gulls: 'bright' },
+  autoLevels: { headroom: 1.5, floor: -12 },
+  data: SOUND_DATA_V3,
 };
 
 /** The rules for a saved version: that version, or the newest this app knows that is older. */
