@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -30 320 240" width="320" height="240">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9d2f0"/><stop offset="1" stop-color="#f3e6f0"/></linearGradient>
+<radialGradient id="glow"><stop offset="0" stop-color="#ffd27a" stop-opacity="0.75"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+
+</defs>
+<g id="art">
+<rect width="320" height="180" fill="url(#bg)"/>
+<circle cx="232" cy="58" r="30" fill="#ffffff" fill-opacity="0.55"/><rect x="-10" y="122" width="340" height="60" fill="#b9cbe8"/><ellipse cx="160" cy="146" rx="96" ry="10" fill="none" stroke="#ffffff" stroke-opacity="0.6" stroke-width="2.4"/><ellipse cx="160" cy="146" rx="60" ry="6" fill="none" stroke="#ffffff" stroke-opacity="0.6" stroke-width="2.4"/><ellipse cx="160" cy="126" rx="44" ry="13" fill="#9aa5b8" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="160" cy="104" rx="34" ry="11" fill="#b7bfcd" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="160" cy="85" rx="25" ry="9" fill="#a3adbf" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="160" cy="69" rx="16" ry="7" fill="#c9d0db" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M64 128 C58 118 60 108 68 102 C70 112 70 120 64 128 Z" fill="#f4b6c2" stroke="#232838" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M64 128 C72 120 82 118 90 120 C84 128 74 130 64 128 Z" fill="#f7c8d2" stroke="#232838" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M64 128 C56 120 46 118 38 120 C44 128 54 130 64 128 Z" fill="#f7c8d2" stroke="#232838" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="64" cy="130" rx="22" ry="4" fill="#6fae63" stroke="#232838" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+</g>
+<!-- The scene is drawn at 16:9; these stretch its top and bottom edges out to a 4:3 frame. -->
+<svg x="0" y="-30" width="320" height="32" viewBox="0 2 320 1" preserveAspectRatio="none"><use href="#art"/></svg>
+<svg x="0" y="177" width="320" height="33" viewBox="0 176 320 1" preserveAspectRatio="none"><use href="#art"/></svg>
+</svg>

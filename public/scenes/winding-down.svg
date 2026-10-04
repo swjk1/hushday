@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -30 320 240" width="320" height="240">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a3a6b"/><stop offset="1" stop-color="#8a6496"/></linearGradient>
+<radialGradient id="glow"><stop offset="0" stop-color="#ffd27a" stop-opacity="0.75"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+
+</defs>
+<g id="art">
+<rect width="320" height="180" fill="url(#bg)"/>
+<ellipse cx="236" cy="86" rx="56" ry="46" fill="url(#glow)"/><rect x="-10" y="132" width="340" height="60" fill="#8f5a34"/><rect x="-10" y="132" width="340" height="12" fill="#a8754a" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M36 132 L44 118 H118 L112 132 Z" fill="#e76f51" stroke="#232838" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M44 118 L50 106 H122 L118 118 Z" fill="#6d9dc5" stroke="#232838" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="170" cy="130" rx="38" ry="6" fill="#ffffff" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M146 98 H194 C194 120 184 128 170 128 C156 128 146 120 146 98 Z" fill="#f6f1ea" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M194 104 c12 0 12 16 -2 16" fill="none" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M152 104 H188" stroke="#c7a36b" stroke-width="3" stroke-linecap="round"/><path d="M164 92 q-5 -5.5 0 -11.0 t0 -11.0" fill="none" stroke="#ffffff" stroke-opacity="0.75" stroke-width="2.4" stroke-linecap="round"/><path d="M172 94 q-5 -5.5 0 -11.0 t0 -11.0" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2.2" stroke-linecap="round"/><rect x="226" y="88" width="20" height="44" rx="4" fill="#fff4dc" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M236 88 V82" stroke="#232838" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M236 82 c-7.0 -4.0 -6.0 -13.0 -1.0 -20.0 c1.0 6.0 6.0 7.0 6.0 13.0 c0 4.0 -2.0 7.0 -5.0 7.0z" fill="#ff8c42" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M236 81.0 c-3.0 -2.0 -3.0 -7.0 0 -11.0 c1.0 4.0 4.0 5.0 3.0 8.0 c-0.5 2.0 -1.5 3.0 -3.0 3.0z" fill="#ffd166"/>
+</g>
+<!-- The scene is drawn at 16:9; these stretch its top and bottom edges out to a 4:3 frame. -->
+<svg x="0" y="-30" width="320" height="32" viewBox="0 2 320 1" preserveAspectRatio="none"><use href="#art"/></svg>
+<svg x="0" y="177" width="320" height="33" viewBox="0 176 320 1" preserveAspectRatio="none"><use href="#art"/></svg>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -30 320 240" width="320" height="240">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9d8ef"/><stop offset="1" stop-color="#f4dfe0"/></linearGradient>
+<radialGradient id="glow"><stop offset="0" stop-color="#ffd27a" stop-opacity="0.75"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+
+</defs>
+<g id="art">
+<rect width="320" height="180" fill="url(#bg)"/>
+<circle cx="236" cy="58" r="20" fill="#ffe0b2" stroke="#232838" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M-10 108 L60 52 L110 94 L160 60 L230 108 Z" fill="#9fb3d6" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M120 108 L210 62 L270 98 L300 80 L340 108 Z" fill="#8aa1c9" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="-10" y="106" width="340" height="80" fill="#b8d0ea" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M30 126 H110 M150 122 H260 M60 142 H180 M210 140 H290 M90 158 H230" stroke="#ffffff" stroke-opacity="0.75" stroke-width="3" stroke-linecap="round"/><path d="M20 96 H120 M180 88 H300" stroke="#ffffff" stroke-opacity="0.55" stroke-width="6" stroke-linecap="round"/>
+</g>
+<!-- The scene is drawn at 16:9; these stretch its top and bottom edges out to a 4:3 frame. -->
+<svg x="0" y="-30" width="320" height="32" viewBox="0 2 320 1" preserveAspectRatio="none"><use href="#art"/></svg>
+<svg x="0" y="177" width="320" height="33" viewBox="0 176 320 1" preserveAspectRatio="none"><use href="#art"/></svg>
+</svg>

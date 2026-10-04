@@ -1,24 +1,24 @@
 /**
- * A photo for each "Good for" scenario, shown when a Mix is saved and on its page. Every one is CC0 or public
- * domain (found through Openverse), cropped to 16:9; credits are in the README.
+ * A cartoon illustration for each "Good for" scenario, shown when a Mix is saved and on its page. All 18 were drawn
+ * for hushday as small SVGs in one style (flat colours, rounded ink outlines), 16:9.
  */
 export const SCENE_IMAGES: Record<string, string> = {
-  'late-night-study': 'scenes/late-night-study.webp',
-  'deep-work': 'scenes/deep-work.webp',
-  'study-sprint': 'scenes/study-sprint.webp',
-  'reading': 'scenes/reading.webp',
-  'falling-asleep': 'scenes/falling-asleep.webp',
-  'power-nap': 'scenes/power-nap.webp',
-  'settling-a-baby': 'scenes/settling-a-baby.webp',
-  'meditation': 'scenes/meditation.webp',
-  'slow-breathing': 'scenes/slow-breathing.webp',
-  'winding-down': 'scenes/winding-down.webp',
-  'cozy-evening': 'scenes/cozy-evening.webp',
-  'rainy-day': 'scenes/rainy-day.webp',
-  'summer-night': 'scenes/summer-night.webp',
-  'seaside': 'scenes/seaside.webp',
-  'slow-morning': 'scenes/slow-morning.webp',
-  'creative-flow': 'scenes/creative-flow.webp',
-  'blocking-noise': 'scenes/blocking-noise.webp',
-  'commute': 'scenes/commute.webp',
+  'late-night-study': 'scenes/late-night-study.svg',
+  'deep-work': 'scenes/deep-work.svg',
+  'study-sprint': 'scenes/study-sprint.svg',
+  'reading': 'scenes/reading.svg',
+  'falling-asleep': 'scenes/falling-asleep.svg',
+  'power-nap': 'scenes/power-nap.svg',
+  'settling-a-baby': 'scenes/settling-a-baby.svg',
+  'meditation': 'scenes/meditation.svg',
+  'slow-breathing': 'scenes/slow-breathing.svg',
+  'winding-down': 'scenes/winding-down.svg',
+  'cozy-evening': 'scenes/cozy-evening.svg',
+  'rainy-day': 'scenes/rainy-day.svg',
+  'summer-night': 'scenes/summer-night.svg',
+  'seaside': 'scenes/seaside.svg',
+  'slow-morning': 'scenes/slow-morning.svg',
+  'creative-flow': 'scenes/creative-flow.svg',
+  'blocking-noise': 'scenes/blocking-noise.svg',
+  'commute': 'scenes/commute.svg',
 };

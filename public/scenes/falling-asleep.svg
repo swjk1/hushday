@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -30 320 240" width="320" height="240">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2442"/><stop offset="1" stop-color="#2f3d68"/></linearGradient>
+<radialGradient id="glow"><stop offset="0" stop-color="#ffd27a" stop-opacity="0.75"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+
+</defs>
+<g id="art">
+<rect width="320" height="180" fill="url(#bg)"/>
+<rect x="216" y="18" width="78" height="62" rx="8" fill="#2b3c6b" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><circle cx="250" cy="44" r="12" fill="#ffe59a"/><circle cx="256" cy="39" r="11" fill="#2b3c6b"/><circle cx="276" cy="32" r="1.4" fill="#fff3c4"/><circle cx="232" cy="66" r="1.4" fill="#fff3c4"/><circle cx="284" cy="64" r="1.4" fill="#fff3c4"/><path d="M255.0 18 V80 M216 49.0 H294" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="210" y="80" width="90" height="7" rx="3" fill="#e9dcc3" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="-10" y="150" width="340" height="30" fill="#24304f"/><rect x="26" y="62" width="30" height="94" rx="8" fill="#c98a55" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="270" y="98" width="20" height="58" rx="6" fill="#c98a55" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="44" y="112" width="240" height="30" rx="8" fill="#e9e3f5" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="88" cy="104" rx="34" ry="14" fill="#ffffff" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M112 108 C150 92 220 96 284 104 L284 142 L112 142 Z" fill="#7d8fd1" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M132 118 C170 110 220 112 270 118" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="3" stroke-linecap="round"/><text x="150" y="72" font-family="Trebuchet MS, Arial" font-weight="700" font-size="22" fill="#ffe59a">Z</text><text x="172" y="54" font-family="Trebuchet MS, Arial" font-weight="700" font-size="16" fill="#ffe59a" fill-opacity="0.8">z</text><text x="188" y="40" font-family="Trebuchet MS, Arial" font-weight="700" font-size="12" fill="#ffe59a" fill-opacity="0.6">z</text>
+</g>
+<!-- The scene is drawn at 16:9; these stretch its top and bottom edges out to a 4:3 frame. -->
+<svg x="0" y="-30" width="320" height="32" viewBox="0 2 320 1" preserveAspectRatio="none"><use href="#art"/></svg>
+<svg x="0" y="177" width="320" height="33" viewBox="0 176 320 1" preserveAspectRatio="none"><use href="#art"/></svg>
+</svg>

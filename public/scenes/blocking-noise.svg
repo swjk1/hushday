@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -30 320 240" width="320" height="240">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdd7e4"/><stop offset="1" stop-color="#e9eef4"/></linearGradient>
+<radialGradient id="glow"><stop offset="0" stop-color="#ffd27a" stop-opacity="0.75"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+
+</defs>
+<g id="art">
+<rect width="320" height="180" fill="url(#bg)"/>
+<path d="M-10 128 V84 H24 V64 H52 V96 H80 V54 H112 V104 H210 V70 H236 V48 H262 V92 H290 V74 H330 V128 Z" fill="#aab8cb"/><rect x="30" y="74" width="6" height="7" fill="#e9eef4" fill-opacity="0.8"/><rect x="40" y="86" width="6" height="7" fill="#e9eef4" fill-opacity="0.8"/><rect x="88" y="64" width="6" height="7" fill="#e9eef4" fill-opacity="0.8"/><rect x="100" y="78" width="6" height="7" fill="#e9eef4" fill-opacity="0.8"/><rect x="88" y="92" width="6" height="7" fill="#e9eef4" fill-opacity="0.8"/><rect x="242" y="58" width="6" height="7" fill="#e9eef4" fill-opacity="0.8"/><rect x="252" y="72" width="6" height="7" fill="#e9eef4" fill-opacity="0.8"/><rect x="216" y="82" width="6" height="7" fill="#e9eef4" fill-opacity="0.8"/><rect x="300" y="86" width="6" height="7" fill="#e9eef4" fill-opacity="0.8"/><rect x="-10" y="128" width="340" height="60" fill="#8fa3bd"/><path d="M110 120 V96 C110 58 210 58 210 96 V120" fill="none" stroke="#232838" stroke-width="14" stroke-linecap="round"/><path d="M110 120 V96 C110 58 210 58 210 96 V120" fill="none" stroke="#6d9dc5" stroke-width="8" stroke-linecap="round"/><rect x="92" y="98" width="34" height="50" rx="14" fill="#2d3550" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="98" y="104" width="18" height="38" rx="8" fill="#6d9dc5"/><rect x="194" y="98" width="34" height="50" rx="14" fill="#2d3550" stroke="#232838" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="204" y="104" width="18" height="38" rx="8" fill="#6d9dc5"/><path d="M150 116 q5 -6 10 0 t10 0" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/><path d="M256 112 q6 -8 12 0 q6 8 12 0 M44 112 q6 -8 12 0 q6 8 12 0" fill="none" stroke="#5a6d88" stroke-opacity="0.5" stroke-width="2.6" stroke-linecap="round"/><path d="M250 102 L292 124 M44 102 L86 124" stroke="#e76f51" stroke-width="3" stroke-linecap="round"/>
+</g>
+<!-- The scene is drawn at 16:9; these stretch its top and bottom edges out to a 4:3 frame. -->
+<svg x="0" y="-30" width="320" height="32" viewBox="0 2 320 1" preserveAspectRatio="none"><use href="#art"/></svg>
+<svg x="0" y="177" width="320" height="33" viewBox="0 176 320 1" preserveAspectRatio="none"><use href="#art"/></svg>
+</svg>
