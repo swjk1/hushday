@@ -4,6 +4,8 @@ import { Knot } from '../components/Knot';
 import { MixStats } from '../components/MixStats';
 import { ShareMix } from '../components/ShareMix';
 import { ordinal, roughDuration, spanLabel, title } from '../core/format';
+import { recommendScenarios } from '../core/scenarios';
+import { SCENE_IMAGES } from '../components/scenes';
 import { SOUNDS } from '../core/sounds';
 import { deleteMix, findMix, toggleSave } from '../state/actions';
 import { usePlayback } from '../state/playback';
@@ -36,6 +38,7 @@ export function MixDetail({ id }: { id: string }) {
   }
 
   const own = !mix.curated;
+  const goodFor = recommendScenarios(mix);
   const isSaved = saved.includes(mix.id);
   const remove = async () => {
     if (!confirmDelete) return setConfirmDelete(true);
@@ -81,6 +84,23 @@ export function MixDetail({ id }: { id: string }) {
         <PlayControl mix={mix} />
         <ZoneButton mixId={mix.id} primary />
       </div>
+
+      {goodFor.length > 0 && (
+        <section className="block">
+          <header className="block-head"><h2 className="label">Good for</h2></header>
+          <ul className="good-for-list">
+            {goodFor.map(g => (
+              <li key={g.id}>
+                {SCENE_IMAGES[g.id] && <img src={SCENE_IMAGES[g.id]} alt="" loading="lazy" decoding="async" />}
+                <span className="good-for-text">
+                  <strong>{g.label}</strong>
+                  <span className="muted small">{g.why}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="block">
         <header className="block-head"><h2 className="label">In this Mix</h2></header>

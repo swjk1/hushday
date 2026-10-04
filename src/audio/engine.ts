@@ -1,7 +1,7 @@
 import { blendGainAt, planBlend, type BlendPlan } from '../core/blend';
 import { PACE_RATE, loopMotion, paceCurve, type PaceLoop } from '../core/pace';
 import { SOUNDS, levelGain, variantOf } from '../core/sounds';
-import { breakpointTimes, duckAt, envelopeAt, isQuiet, positionAt, quietBreakpointTimes } from '../core/timeline';
+import { isQuiet, layerAt, layerTimes, positionAt } from '../core/timeline';
 import type { MixComponent, MixDraft } from '../core/types';
 
 export type SessionKind = 'zone' | 'play' | 'short' | 'preview';
@@ -348,12 +348,12 @@ class AudioEngine {
       const pace = ctx.createGain();
       node.connect(gain).connect(blend).connect(pace).connect(bus);
       const peak = levelGain(c.level) * (variant?.gain ?? def.gain);
-      scheduleCurve(gain.gain, mix, start, offset, until, breakpointTimes(c, mix), t => envelopeAt(c, t, mix) * peak);
+      // Fades, volume and any Quiet block over this sound, together on its own gain.
+      scheduleCurve(gain.gain, mix, start, offset, until, layerTimes(mix, c), t => layerAt(mix, c, t) * peak);
       scheduleBlend(blend.gain, plan, c, mix, start, offset, until);
       voices.push({ id: c.id, sound: c.sound, variant: c.variant ?? '', node, stop, gain, blend, pace, loop });
     }
     this.schedulePace(voices, plan, mix, start, offset, until);
-    scheduleCurve(bus.gain, mix, start, offset, until, quietBreakpointTimes(mix), t => duckAt(mix, t));
 
     const s = session.gain;
     s.setValueAtTime(0, start);
@@ -389,11 +389,10 @@ class AudioEngine {
     const plan = planBlend(mix);
     audible.forEach((c, i) => {
       const peak = levelGain(c.level) * (variantOf(c.sound, c.variant)?.gain ?? SOUNDS[c.sound].gain);
-      scheduleCurve(live.voices[i].gain.gain, mix, start, offset, until, breakpointTimes(c, mix), t => envelopeAt(c, t, mix) * peak, glide);
+      scheduleCurve(live.voices[i].gain.gain, mix, start, offset, until, layerTimes(mix, c), t => layerAt(mix, c, t) * peak, glide);
       // Blend changes (moved blocks, or the toggle) glide slowly so a comparison never jumps.
       scheduleBlend(live.voices[i].blend.gain, plan, c, mix, start, offset, until, BLEND_GLIDE_SEC);
     });
-    scheduleCurve(live.bus.gain, mix, start, offset, until, quietBreakpointTimes(mix), t => duckAt(mix, t), glide);
     const paceKey = JSON.stringify(plan?.pace ?? null);
     if (paceKey !== live.paceKey) {
       this.schedulePace(live.voices, plan, mix, start, offset, until, BLEND_GLIDE_SEC);

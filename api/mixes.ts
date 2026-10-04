@@ -2,6 +2,7 @@ import { requireUser } from '../server/auth.js';
 import { logEvent } from '../server/db.js';
 import { HttpError, json, queryParam, readBody, route } from '../server/http.js';
 import { discover, fingerprintOf, loadMix, parseDraft, toMix } from '../server/mixes.js';
+import { recommendScenarios } from '../src/core/scenarios.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -40,7 +41,7 @@ export const POST = route(async request => {
     insert into mixes (id, creator_id, name, length_sec, repeat_mode, components, fingerprint, fingerprint_version, family_id, discovery_number, parent_mix_id, blend)
     values (${id}, ${user.id}, ${draft.name}, ${draft.lengthSec}, ${draft.repeat}, ${JSON.stringify(draft.components)}::jsonb,
             ${fingerprint}, 1, ${discovery.familyId}, ${discovery.number}, ${draft.parentMixId ?? null}, ${draft.blend ? JSON.stringify(draft.blend) : null}::jsonb)`;
-  await logEvent(sql, user.id, 'mix_created', { mixId: id, fingerprint, parentMixId: draft.parentMixId ?? null, components: draft.components.length, blend: draft.blend?.on ?? false, sounds: [...new Set(draft.components.map(c => c.sound))] });
+  await logEvent(sql, user.id, 'mix_created', { mixId: id, fingerprint, parentMixId: draft.parentMixId ?? null, components: draft.components.length, blend: draft.blend?.on ?? false, sounds: [...new Set(draft.components.map(c => c.sound))], scenarios: recommendScenarios(draft).map(s => s.id) });
 
   return json({ mix: await loadMix(sql, id), discovery }, 201);
 });
@@ -66,7 +67,7 @@ export const PATCH = route(async request => {
       components = ${JSON.stringify(draft.components)}::jsonb, fingerprint = ${fingerprint}, blend = ${draft.blend ? JSON.stringify(draft.blend) : null}::jsonb,
       family_id = ${discovery?.familyId ?? null}, discovery_number = ${discovery?.number ?? null}, updated_at = now()
     where id = ${id}`;
-  await logEvent(sql, user.id, 'mix_edited', { mixId: id, structureChanged: changed, blend: draft.blend?.on ?? false, sounds: [...new Set(draft.components.map(c => c.sound))] });
+  await logEvent(sql, user.id, 'mix_edited', { mixId: id, structureChanged: changed, blend: draft.blend?.on ?? false, sounds: [...new Set(draft.components.map(c => c.sound))], scenarios: recommendScenarios(draft).map(s => s.id) });
 
   return json({ mix: await loadMix(sql, id), discovery: changed ? discovery : null });
 });

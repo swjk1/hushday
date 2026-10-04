@@ -1,10 +1,11 @@
 import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CURATED_MIXES } from './catalog.js';
+import { FIRST_CURATED } from './test-fixtures.js';
 import { canonicalize } from './fingerprint.js';
 import { decodeMix, encodeMix } from './share.js';
 import { SOUNDS } from './sounds.js';
-import { breakpointTimes, duckAt, envelopeAt, positionAt } from './timeline.js';
+import { breakpointTimes, duckAt, envelopeAt, layerAt, positionAt } from './timeline.js';
 import type { MixComponent, MixDraft } from './types.js';
 import { MixValidationError, sanitizeDraft } from './validate.js';
 
@@ -49,7 +50,7 @@ describe('fingerprint', () => {
 });
 
 describe('timeline', () => {
-  const locked = CURATED_MIXES[0];
+  const locked = FIRST_CURATED[0];
 
   it('keeps full-length layers continuous across loop boundaries', () => {
     const brown = locked.components[0];
@@ -68,14 +69,38 @@ describe('timeline', () => {
     expect(breakpointTimes(rain, m)).toContain(10 * 60 - 1);
   });
 
-  it('ducks everything during a quiet section', () => {
-    expect(duckAt(locked, 23.5 * 60)).toBeLessThan(0.2);
-    expect(duckAt(locked, 10 * 60)).toBe(1);
+  it('ducks everything during a quiet section on a track of its own', () => {
+    // These blocks have no tracks (an older Mix), so the Quiet block is braided with nothing and quiets every sound.
+    for (const layer of locked.components.filter(x => x.sound !== 'quiet')) {
+      expect(duckAt(locked, layer, 23.5 * 60)).toBeLessThan(0.2);
+      expect(duckAt(locked, layer, 10 * 60)).toBe(1);
+    }
+  });
+
+  it('quiets only the sounds a Quiet block is dropped onto', () => {
+    const on = (x: MixComponent, row: number) => ({ ...x, row });
+    const rain = on(c('rain', 0, 30, 0.5), 0), brown = on(c('brown', 0, 30, 0.5), 1), zen = on(c('zen', 0, 30, 0.5), 2);
+    const quiet = on(c('quiet', 10, 20, 0.9), 0);
+    const m = mix([rain, brown, zen, quiet]);
+    // Braided with the rain (same track, overlapping): the rain dips, the others play on.
+    expect(duckAt(m, rain, 15 * 60)).toBeLessThan(0.2);
+    expect(duckAt(m, brown, 15 * 60)).toBe(1);
+    expect(duckAt(m, zen, 15 * 60)).toBe(1);
+    expect(duckAt(m, rain, 5 * 60)).toBe(1);
+    // On a track of its own, overlapping nothing there, it quiets everything.
+    const alone = mix([rain, brown, zen, on(quiet, 3)]);
+    for (const x of [rain, brown, zen]) expect(duckAt(alone, x, 15 * 60)).toBeLessThan(0.2);
+    // Two sounds braided on one track both dip under it; a sound on another track does not.
+    const mid = mix([on(c('rain', 0, 12, 0.5), 0), on(c('brown', 4, 30, 0.5, 'b2'), 0), zen, on(c('quiet', 5, 10, 0.9), 0)]);
+    expect(duckAt(mid, mid.components[1], 7 * 60)).toBeLessThan(0.2);
+    expect(duckAt(mid, zen, 7 * 60)).toBe(1);
+    // The level a sound plays at is its own fades times the dip over it.
+    expect(layerAt(m, rain, 15 * 60)).toBeCloseTo(envelopeAt(rain, 15 * 60, m) * duckAt(m, rain, 15 * 60));
   });
 
   it('loops or holds when a Zone outlasts the Mix', () => {
     expect(positionAt(locked, 65 * 60)).toMatchObject({ pass: 2, pos: 5 * 60 });
-    const tide = CURATED_MIXES.find(m => m.id === 'c-low-tide')!;
+    const tide = FIRST_CURATED.find(m => m.id === 'c-low-tide')!;
     expect(positionAt(tide, 5 * 3600)).toMatchObject({ sustaining: true, pos: tide.lengthSec });
     const tideBrown = tide.components[1];
     expect(envelopeAt(tideBrown, tide.lengthSec, tide)).toBe(1);
@@ -89,7 +114,7 @@ describe('timeline', () => {
     let worst = 0;
     for (let t = 0; t < shape.lengthSec; t++) {
       worst = Math.max(worst, Math.abs(envelopeAt(focus, t + 1, shape) - envelopeAt(focus, t, shape)));
-      worst = Math.max(worst, Math.abs(duckAt(dip, t + 1) - duckAt(dip, t)));
+      worst = Math.max(worst, Math.abs(duckAt(dip, dip.components[0], t + 1) - duckAt(dip, dip.components[0], t)));
     }
     // No single second moves the level more than a small, audibly smooth step.
     expect(worst).toBeLessThan(0.08);

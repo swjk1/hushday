@@ -41,11 +41,50 @@ export function envelopeAt(c: MixComponent, t: number, mix: Shape): number {
   return Math.max(0, Math.min(1, v));
 }
 
-/** Multiplier applied to every audible layer; quiet sections pull it down. */
-export function duckAt(mix: MixDraft, t: number): number {
+/**
+ * The blocks braided with `c`: placed on the same track and overlapping it, directly or through each other.
+ * A block without a track (older Mixes) braids with nothing.
+ */
+export function braidOf(components: MixComponent[], c: MixComponent): MixComponent[] {
+  if (c.row == null) return [c];
+  const inRow = components.filter(o => o.row === c.row);
+  const group = [c];
+  for (let i = 0; i < group.length; i++) {
+    for (const o of inRow) if (!group.includes(o) && o.start < group[i].end && group[i].start < o.end) group.push(o);
+  }
+  return group;
+}
+
+const quietCache = new WeakMap<MixDraft, Map<string, MixComponent[]>>();
+
+/**
+ * The Quiet blocks that quiet a sound. A Quiet block quiets the sounds it is braided with (dropped onto them);
+ * one that is braided with no sound, on a track of its own, quiets everything.
+ */
+export function quietsOver(mix: MixDraft, c: MixComponent): MixComponent[] {
+  let map = quietCache.get(mix);
+  if (!map) {
+    map = new Map();
+    const audible = mix.components.filter(o => !isQuiet(o));
+    for (const q of mix.components.filter(isQuiet)) {
+      const braided = braidOf(mix.components, q).filter(o => !isQuiet(o));
+      for (const o of braided.length ? braided : audible) map.set(o.id, [...(map.get(o.id) ?? []), q]);
+    }
+    quietCache.set(mix, map);
+  }
+  return map.get(c.id) ?? [];
+}
+
+/** How far the Quiet blocks over a sound pull it down at t: 1 is untouched, 0 silent. */
+export function duckAt(mix: MixDraft, c: MixComponent, t: number): number {
   let d = 1;
-  for (const c of mix.components) if (isQuiet(c)) d = Math.min(d, 1 - c.level * envelopeAt(c, t, mix));
+  for (const q of quietsOver(mix, c)) d = Math.min(d, 1 - q.level * envelopeAt(q, t, mix));
   return Math.max(0, d);
+}
+
+/** A sound's level at t from its own fades and the Quiet blocks over it, before its volume. */
+export function layerAt(mix: MixDraft, c: MixComponent, t: number): number {
+  return envelopeAt(c, t, mix) * duckAt(mix, c, t);
 }
 
 /** Times inside a pass to schedule a component's envelope at. Close enough to linear between them. */
@@ -61,9 +100,10 @@ export function breakpointTimes(c: MixComponent, mix: Shape): number[] {
   return uniqueSorted(times, mix.lengthSec);
 }
 
-export function quietBreakpointTimes(mix: MixDraft): number[] {
-  const times = [0, mix.lengthSec];
-  for (const c of mix.components) if (isQuiet(c)) times.push(...breakpointTimes(c, mix));
+/** Times to schedule a sound's level at: its own fades and those of the Quiet blocks over it. */
+export function layerTimes(mix: MixDraft, c: MixComponent): number[] {
+  const times = breakpointTimes(c, mix);
+  for (const q of quietsOver(mix, c)) times.push(...breakpointTimes(q, mix));
   return uniqueSorted(times, mix.lengthSec);
 }
 
@@ -86,7 +126,7 @@ export function positionAt(mix: Shape, elapsed: number) {
 
 /** Effective level (envelope × quiet duck) of a component, ignoring its intensity. */
 export function presenceAt(mix: MixDraft, c: MixComponent, t: number) {
-  return isQuiet(c) ? 0 : envelopeAt(c, t, mix) * duckAt(mix, t);
+  return isQuiet(c) ? 0 : layerAt(mix, c, t);
 }
 
 export function activeSoundsAt(mix: MixDraft, pos: number) {

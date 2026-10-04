@@ -30,10 +30,9 @@ export function drawRibbon(g: CanvasRenderingContext2D, w: number, h: number, mi
   let peak = 0;
   for (let i = 0; i <= cols; i++) {
     const t = (i / cols) * L;
-    const duck = duckAt(mix, t);
     let total = 0;
     layers.forEach((c, j) => {
-      const v = maxBand * (0.22 + 0.78 * c.level) * envelopeAt(c, t, mix) * duck;
+      const v = maxBand * (0.22 + 0.78 * c.level) * envelopeAt(c, t, mix) * duckAt(mix, c, t);
       thickness[j][i] = v;
       total += v;
     });

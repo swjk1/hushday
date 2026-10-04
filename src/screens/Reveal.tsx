@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Orb } from '../components/PlayerCard';
 import { SOUNDS } from '../core/sounds';
 import { mixSounds, ordinal, title } from '../core/format';
+import { recommendScenarios } from '../core/scenarios';
+import { SCENE_IMAGES } from '../components/scenes';
 import { findMix } from '../state/actions';
 import { setUi, useUi, haptic } from '../state/ui';
 
@@ -40,6 +42,7 @@ export function Reveal() {
   const mix = findMix(reveal.mixId);
   const close = () => setUi({ reveal: null });
   const first = discovery?.first ?? false;
+  const goodFor = mix ? recommendScenarios(mix) : [];
 
   return (
     <div className={`reveal ${first ? 'is-first' : ''}`} role="dialog" aria-modal="true" aria-labelledby="reveal-title">
@@ -66,6 +69,19 @@ export function Reveal() {
             </p>
           </>
         ) : null}
+        {goodFor.length > 0 && (
+          <div className="good-for">
+            <span className="tiny-label">Good for</span>
+            <ul>
+              {goodFor.map(g => (
+                <li key={g.id}>
+                  {SCENE_IMAGES[g.id] && <img src={SCENE_IMAGES[g.id]} alt="" decoding="async" />}
+                  <span>{g.label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="reveal-actions">
           <button className="btn outline" onClick={close}>Done</button>
           <button className="btn primary" onClick={() => setUi({ reveal: null, durationFor: reveal.mixId })}>Start Zone</button>

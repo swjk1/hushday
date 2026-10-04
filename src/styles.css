@@ -402,7 +402,7 @@ input[type='range'] { accent-color: var(--c, #cde1ad); }
 .sheet-cancel { display: block; margin: 18px auto 0; }
 
 .reveal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 20px; background: #050b11c7; backdrop-filter: blur(4px); animation: fade 0.25s ease; }
-.reveal-card { width: min(460px, 100%); background: #1b2a36; border: 1px solid #ffffff2b; border-radius: 17px; padding: 26px 28px 28px; box-shadow: 0 28px 90px #0009; text-align: center; animation: rise 0.35s cubic-bezier(0.2, 1, 0.3, 1); }
+.reveal-card { width: min(500px, 100%); background: #1b2a36; border: 1px solid #ffffff2b; border-radius: 17px; padding: 26px 28px 28px; box-shadow: 0 28px 90px #0009; text-align: center; animation: rise 0.35s cubic-bezier(0.2, 1, 0.3, 1); }
 .reveal-card .sound-orb { height: 170px; }
 .reveal-title { font-family: var(--serif); font-weight: 400; font-size: clamp(38px, 7vw, 48px); margin: 10px 0 6px; color: #f1f4e9; }
 .reveal-title em { color: #d1dfa9; }
@@ -516,3 +516,18 @@ input[type='range'] { accent-color: var(--c, #cde1ad); }
 
 /* Who recorded each sound, and under which licence */
 .sound-credit { display: block; margin: 4px 0 0; font-size: 10.5px; line-height: 1.35; color: var(--muted); overflow-wrap: anywhere; }
+
+/* "Good for": the moments a Mix suits, each with its photo */
+.good-for { margin-top: 20px; display: grid; justify-items: center; gap: 10px; width: 100%; }
+.good-for ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; }
+.good-for li { position: relative; overflow: hidden; border-radius: 12px; aspect-ratio: 1 / 1; background: var(--well, #0f1418); border: 1px solid var(--line); }
+.good-for li img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.good-for li span { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 9px 8px; font-size: 13.5px; font-weight: 600; line-height: 1.25; color: #fff; text-align: left;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0)); }
+.good-for-list { list-style: none; margin: 0 0 6px; padding: 0; }
+.good-for-list li { display: grid; grid-template-columns: 152px 1fr; gap: 16px; align-items: center; padding: 13px 0; border-bottom: 1px solid var(--line); font-size: 16px; }
+.good-for-list li img { width: 152px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; display: block; }
+.good-for-text { display: grid; gap: 4px; }
+.good-for-text .small { font-size: 14px; }
+.good-for-list strong { font-weight: 600; }
+@media (max-width: 480px) { .good-for-list li { grid-template-columns: 120px 1fr; gap: 12px; } .good-for-list li img { width: 120px; } }

@@ -6,17 +6,19 @@ function part(id: string, sound: SoundId, startMin: number, endMin: number, leve
   return { id, sound, start: startMin * MIN, end: endMin * MIN, level, entry };
 }
 
-function curated(id: string, name: string, tagline: string, lengthMin: number, repeat: Mix['repeat'], components: MixComponent[]): Mix {
-  return { id, name, tagline, lengthSec: lengthMin * MIN, repeat, components, creatorId: null, curated: true, createdAt: '2026-09-26T00:00:00.000Z', parentMixId: null };
+function curated(id: string, name: string, tagline: string, lengthMin: number, repeat: Mix['repeat'], components: MixComponent[], blend?: Mix['blend']): Mix {
+  return { id, name, tagline, lengthSec: lengthMin * MIN, repeat, components, creatorId: null, curated: true, createdAt: '2026-09-26T00:00:00.000Z', parentMixId: null, ...(blend ? { blend } : {}) };
 }
 
 export const CURATED_MIXES: Mix[] = [
-  curated('c-locked-in', 'LOCKED IN', 'Long, deep work. Rain rolls in, a focus hit lands, a breath, then back under.', 30, 'loop', [
-    part('brown', 'brown', 0, 30, 0.78),
-    part('rain', 'rain', 3, 30, 0.52, 'slow'),
-    part('focus', 'focus', 12, 20, 0.66),
-    part('quiet', 'quiet', 22, 25, 0.85),
-  ]),
+  // Made in the Studio with Auto-Blend on, and kept that way so it plays exactly as it was made. It keeps the id
+  // of the Mix it replaced (LOCKED IN), so the home player and anything saved that points at it still work.
+  curated('c-locked-in', 'STILL RAIN', 'Two low, still tones with rain held soft and far away beneath them.', 15, 'loop', [
+    // Quiet is dropped onto the rain (same track), so it softens the rain and leaves the tones as they are.
+    { ...part('rain', 'rain', 0, 15, 0.24), manual: true, row: 0 },
+    { ...part('zen', 'zen', 0, 15, 0.49), row: 1 },
+    { ...part('quiet', 'quiet', 0, 15, 0.9), row: 0 },
+  ], { on: true, v: 3 }),
   curated('c-deep-end', 'DEEP END', 'Warm, low and steady. For reading and long stretches.', 20, 'loop', [
     part('brown', 'brown', 0, 20, 0.72),
     part('ocean', 'ocean', 0, 20, 0.3),

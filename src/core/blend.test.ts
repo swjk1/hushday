@@ -3,7 +3,7 @@ import { autoLevels, blendDbAt, blendGainAt, blendHints, planBlend, withAutoLeve
 import { RULES } from './blend-rules.js';
 import { PACE_RATE, loopMotion, motionAt, motionDepth, paceCurve, paceDbAt, paceWeightAt } from './pace.js';
 import { BLEND_VERSION } from './blend-version.js';
-import { CURATED_MIXES } from './catalog.js';
+import { FIRST_CURATED } from './test-fixtures.js';
 import { canonicalize } from './fingerprint.js';
 import { decodeMix, encodeMix } from './share.js';
 import { SOUNDS, SOUND_ORDER } from './sounds.js';
@@ -121,7 +121,7 @@ describe('Auto-Blend planner', () => {
   });
 
   it('is frozen for version 1: the curated Mixes plan exactly as recorded', () => {
-    const plans = Object.fromEntries(CURATED_MIXES.map(m => [m.id, planBlend({ ...m, blend: { on: true, v: 1 } })]));
+    const plans = Object.fromEntries(FIRST_CURATED.map(m => [m.id, planBlend({ ...m, blend: { on: true, v: 1 } })]));
     expect(plans).toMatchSnapshot();
   });
 });

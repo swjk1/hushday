@@ -52,6 +52,31 @@ All seven nature sounds play real recordings: public domain, CC0, or CC BY 4.0. 
 | Night | B | [Nighttime crickets, Les Cluses, France](https://archive.org/details/aporee_70514_82218) | Jillis Molenaar via Radio Aporee | Public Domain Mark |
 | Seagulls | Original | [seagulls, Scheveningen, the Netherlands](https://freesound.org/s/144835/) | Eelke via Freesound | CC BY 4.0 |
 
+## Scenario images
+
+The "Good for" photos in `public/scenes/` are all CC0 or public domain, found through [Openverse](https://openverse.org) and cropped to 16:9.
+
+| Scenario | Photo | By | Licence |
+| --- | --- | --- | --- |
+| Late-night studying | [Office Work](https://stocksnap.io/photo/office-work-N0ZRKV9CI6) | Lee Campbell | CC0 1.0 |
+| Deep work | [Top Workspace](https://stocksnap.io/photo/top-workspace-MY9TVNEESX) | Top Down Tech | CC0 1.0 |
+| A study sprint | [Notebook Paper](https://stocksnap.io/photo/notebook-paper-JLXDNN5BNE) | Angelina Litvin | CC0 1.0 |
+| Reading | [Free flat lay reading book](https://www.rawpixel.com/image/5923409/photo-image-book-public-domain-black) | Unknown | CC0 1.0 |
+| Falling asleep | [Pillows Sheets](https://stocksnap.io/photo/pillows-sheets-M0YZ9Q79DZ) | Jay Mantri | CC0 1.0 |
+| A power nap | [Hammock Relax](https://stocksnap.io/photo/hammock-relax-DSSPYT64JZ) | Freestocks.org | CC0 1.0 |
+| Settling a baby | [Untitled](https://www.rawpixel.com/image/6051660/free-public-domain-cc0-photo) | Unknown | CC0 1.0 |
+| Meditation | [Balancing stones beach](https://www.rawpixel.com/image/6034388/photo-image-wallpaper-public-domain-beach) | Unknown | CC0 1.0 |
+| Slow breathing | [A branch](https://www.flickr.com/photos/189681306@N02/53591589188) | Ted Moravec | CC0 1.0 |
+| Winding down after work | [Teacup Teacups](https://stocksnap.io/photo/teacup-teacups-TTOEJQHHZ1) | Suzy Hazelwood | CC0 1.0 |
+| A cozy evening in | [fireplace](https://www.flickr.com/photos/47121680@N00/52533388780) | joncutrer | CC0 1.0 |
+| A rainy day indoors | [A view through a rain-speckled window, showing droplets of water collecting on the glass.](https://wordpress.org/photos/photo/61362bda1d/) | nidhidhandhukiya | CC0 1.0 |
+| A summer night | [Starry sky background](https://www.rawpixel.com/image/6034023/photo-image-background-aesthetic-public-domain) | Unknown | CC0 1.0 |
+| A day by the sea | ['Grand designs' Pegasus bay.](https://www.flickr.com/photos/88123769@N02/51501276311) | Bernard Spragg | Public Domain Mark |
+| A slow morning | [Cafe Window](https://stocksnap.io/photo/cafe-window-NDIQFBYIHR) | Burst | CC0 1.0 |
+| Writing and creative work | [Journal Notepad](https://stocksnap.io/photo/journal-notepad-DPKNIIN5X3) | Cathryn Lavery | CC0 1.0 |
+| Blocking out a noisy room | [Koss headphones](https://www.flickr.com/photos/57866029@N00/52459692877) | Abdulla Al Muhairi | CC0 1.0 |
+| Travel and commuting | [Munich Hauptbahnhof](https://www.flickr.com/photos/15802578@N00/51707662507) | wwward0 | CC0 1.0 |
+
 ## Run
 
 ```sh

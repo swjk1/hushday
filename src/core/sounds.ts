@@ -203,8 +203,8 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
   },
   quiet: {
     id: 'quiet', label: 'Quiet', name: 'Quiet section', category: 'quiet', color: '#9AABB3',
-    blurb: 'A pause. Everything drops away.',
-    detail: 'Fades every other layer down for its length, then brings them back.',
+    blurb: 'A pause. The sounds under it drop away.',
+    detail: 'Dropped onto sounds, it fades just those down for its length, then brings them back. On a track of its own, it fades everything.',
     gain: 0, defaultLevel: 1, strand: { width: 1, spacing: 3, texture: 'none' },
     family: 'Space', tone: [0, 0, 0],
   },

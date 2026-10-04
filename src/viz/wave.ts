@@ -100,7 +100,7 @@ export function drawWave(g: CanvasRenderingContext2D, w: number, h: number, mix:
     const raw = new Float32Array(cols + 1);
     for (let i = 0; i <= cols; i++) {
       const t = (i / cols) * L;
-      raw[i] = envelopeAt(c, t, mix) * duckAt(mix, t);
+      raw[i] = envelopeAt(c, t, mix) * duckAt(mix, c, t);
     }
     // Presence softened at the edges, so entries and exits ease in instead of hanging there.
     const e = blur(blur(raw, radius), radius);
